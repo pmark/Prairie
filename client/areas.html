@@ -80,12 +80,18 @@
 
         <br/>
         <br/>
-
         {{> attendance}}
 
+        <br/>
+
         {{#if canRemove}}
-          <button type="button" class="remove btn btn-danger">Delete</button>
+          <button type="button" class="remove btn btn-danger"><i class="icon icon-large icon-remove-sign"></i></button>
         {{/if}}
+
+        {{#if hasLink}}
+          <button type="button" class="view btn btn-link">Details</button>
+        {{/if}}
+
       {{/with}}
     {{else}}
       <h1 class="muted pagination-centered">
@@ -118,7 +124,7 @@
   <div class="modal">
     <div class="modal-header">
       <button type="button" class="close cancel">&times;</button>
-      <h3>Add Focus</h3>
+      <h3>New area of focus</h3>
     </div>
 
     <div class="modal-body">
@@ -132,16 +138,16 @@
       <label>Epic URL</label>
       <input type="text" class="link span5">
 
-      <br/>
+<!--       <br/>
       <br/>
       <label style="margin-right:20px;">Priority</label>
       <input id="slider-create" type="text" class="span2" value="" data-slider-min="0" data-slider-max="100" data-slider-step="1" data-slider-value="" data-slider-orientation="horizontal" data-slider-selection="before" data-slider-tooltip="show">
-
+ -->
     </div>
 
     <div class="modal-footer">
       <a href="#" class="btn cancel">Cancel</a>
-      <a href="#" class="btn btn-primary save">Add Focus</a>
+      <a href="#" class="btn btn-primary save">Add</a>
     </div>
   </div>
 </template>

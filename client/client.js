@@ -41,6 +41,14 @@ Template.details.canRemove = function () {
   return true;
 };
 
+Template.details.hasLink = function () {
+  return (this.link && this.link.length);
+};
+
+Template.details.link = function () {
+  return this.link || '';
+};
+
 Template.details.loggedIn = function () {
   return (Meteor.userId() != null);
 };
@@ -68,7 +76,16 @@ Template.details.events({
   'click .remove': function () {
     Areas.remove(this._id);
     return false;
+  },
+
+  'click .view': function () {
+    if (this.link)
+    {
+      window.open(this.link, "_blank")
+      return false;      
+    }
   }
+
 });
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -208,7 +225,6 @@ Template.teamAreaZone.areaCount = function () {
 function greekLetter(number)
 {
   number = Math.max(0, Math.min(GREEK_LETTERS.length, number));
-  console.log("area number:", number);
   return GREEK_LETTERS[number];
 }
 
@@ -219,9 +235,7 @@ Template.createDialog.events(
     var link = template.find(".link").value;
     var description = template.find(".description").value;
     var name = greekLetter(Template.teamAreaZone.areaCount());
-    var priority = $('#slider-create').slider('getValue');
-
-    console.log("priority:", priority);
+    // var priority = parseFloat($('#slider-create').attr("value") / 100);
 
     if (name.length && description.length)
     {
@@ -231,7 +245,7 @@ Template.createDialog.events(
         description: description,
         link: link,
         team: 1,
-        priority: Math.max(0.1, Math.random())
+        priority: 0.5
       }, 
       function (error, area)
       {
