@@ -18,6 +18,7 @@ Areas = new Meteor.Collection("areas");
 
 Areas.allow({
   insert: function (userId, area) {
+    console.log("----------Areas.allow: insert");
     return false; // no cowboy inserts -- use createArea method
   },
   
@@ -33,39 +34,26 @@ Areas.allow({
     return true;
   },
   
-  changePriority: function (areaId, newPriority) {
-    
-    newPriority = Math.max(0.0, Math.min(1.0, newPriority));
-
-    Areas.update(
-      {
-        _id: areaId, 
-        "priority": newPriority
-      },
-      {
-        $set: {"rsvps.$.rsvp": rsvp}
-      });
-  },
-
   remove: function (userId, area) {
     // You can only remove areas that you created and nobody is going to.
-    return area.owner === userId && attending(area) === 0;
+    return true;
   }
 });
 
 var attending = function (area) {
-  return (_.groupBy(area.rsvps, 'rsvp').yes || []).length;
+  return (area.focusers || []).length;
+  // return (_.groupBy(area.focusers, 'rsvp').yes || []).length;
 };
 
 Meteor.methods({
-  // options should include: description, link, name, team
+  // options should include: description, name, team
+
   createArea: function (options) 
   {
     options = options || {};
     if (! (typeof options.name === "string" && options.name.length &&
            typeof options.description === "string" &&
            options.description.length &&
-
            typeof options.team === "number" && options.team >= 0))
       throw new Meteor.Error(400, "Required parameter missing");
     if (options.description.length > 100)
@@ -73,7 +61,9 @@ Meteor.methods({
     if (! this.userId)
       throw new Meteor.Error(403, "You must be logged in");
 
-    return Areas.insert({
+    var areaData = {
+      x: Math.random(),
+      y: Math.random(),
       owner: this.userId,
       team: options.team,
       priority: options.priority,
@@ -81,48 +71,39 @@ Meteor.methods({
       name: options.name,
       description: options.description,
       focusers: []
-    });
+    };
+
+    var b = Areas.insert(areaData);
+    return b;
   },
 
-  rsvp: function (areaId, rsvp) {
-    if (! this.userId)
-      throw new Meteor.Error(403, "You must be logged in to RSVP");
-    if (! _.contains(['yes', 'no', 'maybe'], rsvp))
-      throw new Meteor.Error(400, "Invalid RSVP");
+  changePriority: function (areaId, newPriority)
+  {  
+    newPriority = Math.max(0.0, Math.min(1.0, newPriority));
+
+    Areas.update(
+      {
+        _id: areaId
+      },
+      {
+        $set: {"priority": newPriority}
+      });
+  },
+
+  joinArea: function (areaId)
+  {
     var area = Areas.findOne(areaId);
-    if (! area)
+
+    if (! area )
       throw new Meteor.Error(404, "No such area");
-    if (! area.public && area.owner !== this.userId &&
-        !_.contains(area.invited, this.userId))
-      // private, but let's not tell this to the user
-      throw new Meteor.Error(403, "No such area");
 
-    var rsvpIndex = _.indexOf(_.pluck(area.rsvps, 'user'), this.userId);
-    if (rsvpIndex !== -1) {
-      // update existing rsvp entry
+    if (! this.userId )
+      throw new Meteor.Error(404, "Please log in");
 
-      if (Meteor.isServer) {
-        // update the appropriate rsvp entry with $
-        Areas.update(
-          {_id: areaId, "rsvps.user": this.userId},
-          {$set: {"rsvps.$.rsvp": rsvp}});
-      } else {
-        // minimongo doesn't yet support $ in modifier. as a temporary
-        // workaround, make a modifier that uses an index. this is
-        // safe on the client since there's only one thread.
-        var modifier = {$set: {}};
-        modifier.$set["rsvps." + rsvpIndex + ".rsvp"] = rsvp;
-        Areas.update(areaId, modifier);
-      }
-
-      // Possible improvement: send email to the other people that are
-      // coming to the area.
-    } else {
-      // add new rsvp entry
-      Areas.update(areaId,
-                     {$push: {rsvps: {user: this.userId, rsvp: rsvp}}});
-    }
+    console.log("Adding focuser", this.userId, "to area ", areaId);
+    Areas.update(areaId, { $addToSet: { focusers: this.userId } });
   }
+
 });
 
 ///////////////////////////////////////////////////////////////////////////////

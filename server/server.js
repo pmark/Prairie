@@ -40,7 +40,10 @@ Meteor.publish("directory", function ()
 Meteor.publish("areas", function () 
 {
 	// Get all public areas, my areas, or areas I'm invited to.
+	// console.log("server: Meteor.publish(areas): ", this, this.team);
+	return Areas.find();
 
-	return Areas.find(
-		{$or: [{"public": true}, {invited: this.userId}, {owner: this.userId}]});
+	// TODO: Get areas for this team only.
+	// return Areas.find(
+	// 	{ team: this.team});
 });

@@ -5,6 +5,7 @@
 
 <body>
   {{> page}}
+
 </body>
 
 <template name="page">
@@ -34,7 +35,7 @@
 
         <div class="row">
           <div class="span6">
-            {{> map}}
+            {{> teamAreaZone}}
             {{#if currentUser}}
             <div class="pagination-centered">
               <em><small>Tap an area to focus on it.</small></em>
@@ -52,28 +53,10 @@
   </div>
 </template>
 
-<template name="map">
-  <div class="map">
-    {{#constant}}
-      <svg width="500" height="500">
-        <circle class="callout" cx=-100 cy=-100></circle>
-        <g class="circles"></g>
-        <g class="labels"></g>
-      </svg>
-    {{/constant}}
-    <div>
-      <small class="attribution muted">&copy;
-        <a href="http://www.openstreetmap.org/?lat=37.78212&lon=-122.40146&zoom=15&layers=M"
-           target="_blank">OpenStreetMap</a> contributors</small>
-    </div>
-  </div>
-</template>
-
 <template name="teamAreaZone">
   <div class="team-area-zone">
     {{#constant}}
-      <svg width="500" height="500">
-        <circle class="callout" cx=-100 cy=-100></circle>
+      <svg width="100%" height="600">
         <g class="circles"></g>
         <g class="labels"></g>
       </svg>
@@ -89,86 +72,43 @@
 
         <div class="description">{{description}}</div>
 
+        <span class="label label-inverse">Priority</span>
+        <input id="slider-details" type="text" class="span2" value="{{priority}}" data-slider-min="0" data-slider-max="100" data-slider-step="1" data-slider-value="50" data-slider-orientation="horizontal" data-slider-selection="before" data-slider-tooltip="show">
+        <span class="label">{{priority}}</span>        
+
+        <br/>
+        <br/>
+
         {{> attendance}}
 
-        <div class="rsvp-buttons">
-          {{#if currentUser}}
-            <input type="button" value="I'm going!"
-                   class="btn btn-small rsvp_yes {{maybeChosen "yes"}}">
-            <input type="button" value="Maybe"
-                   class="btn btn-small rsvp_maybe {{maybeChosen "maybe"}}">
-            <input type="button" value="No"
-                   class="btn btn-small rsvp_no {{maybeChosen "no"}}">
-          {{else}}
-            <i>Sign in to RSVP for this area.</i>
-          {{/if}}
-          <p><small>Posted by {{creatorName}}</small></p>
-        </div>
-
         {{#if canRemove}}
-          <div class="alert alert-info"><small>
-              You posted this area and nobody is signed up to go, so if
-              you like, you could
-              <b><a href="#" class="remove">delete this listing</a></b>.
-          </small></div>
+          <button type="button" class="remove btn btn-danger">Delete</button>
         {{/if}}
       {{/with}}
     {{else}}
       <h1 class="muted pagination-centered">
-        {{#if anyAreas}}
-          Click a area to select it
+        {{#unless true}}
+          Please sign in.
         {{else}}
-          Sign in and double click the map to post a area
-        {{/if}}
+          {{#if anyAreas}}
+            Click an area of focus to select it, or double click to join
+          {{else}}
+            Double click to add an area of focus.
+          {{/if}}
+        {{/unless}}
       </h1>
     {{/if}}
   </div>
 </template>
 
 <template name="attendance">
+  {{#unless nobody}}
   <div class="attendance well well-small">
-    <div class="muted who"><b>Who</b></div>
-    {{#if public}}
-      <div>
-        <b>Everyone</b>
-        <span class="label label-inverse pull-right">Invited</span>
-      </div>
-    {{/if}}
-
-    {{#each rsvps}}
-      <div>
-        {{rsvpName}}
-        {{#if rsvpIs "yes"}}
-          <span class="label label-success pull-right">Going</span>
-        {{/if}}
-        {{#if rsvpIs "maybe"}}
-          <span class="label label-info pull-right">Maybe</span>
-        {{/if}}
-        {{#if rsvpIs "no"}}
-          <span class="label label pull-right">No</span>
-        {{/if}}
-      </div>
-    {{/each}}
-
-    {{#unless public}}
-      {{#each outstandingInvitations}}
-        <div>
-          {{invitationName}}
-          <span class="label label-inverse pull-right">Invited</span>
-        </div>
-      {{/each}}
-    {{/unless}}
-
-    {{#if nobody}}
-      <div>Nobody.</div>
-    {{/if}}
-
-    {{#if canInvite}}
-      <div class="invite">
-        <a href="#" class="btn btn-mini invite">Invite people</a>
-      </div>
-    {{/if}}
+    <div>
+      <span class="label label-success">{{focuserName}}</span>
+    </div>
   </div>
+  {{/unless}}
 </template>
 
 <template name="createDialog">
@@ -176,7 +116,7 @@
   <div class="modal">
     <div class="modal-header">
       <button type="button" class="close cancel">&times;</button>
-      <h3>Add area</h3>
+      <h3>Add Focus</h3>
     </div>
 
     <div class="modal-body">
@@ -190,41 +130,16 @@
       <label>Epic URL</label>
       <input type="text" class="link span5">
 
-      <label class="checkbox">
-        <input type="checkbox" class="private">
-        Private area &mdash; invitees only
-      </label>
+      <br/>
+      <br/>
+      <label>Priority</label>
+      <input id="slider-create" type="text" class="span2" value="" data-slider-min="0" data-slider-max="100" data-slider-step="1" data-slider-value="50" data-slider-orientation="horizontal" data-slider-selection="before" data-slider-tooltip="show">
+
     </div>
 
     <div class="modal-footer">
       <a href="#" class="btn cancel">Cancel</a>
-      <a href="#" class="btn btn-primary save">Add area</a>
+      <a href="#" class="btn btn-primary save">Add Focus</a>
     </div>
   </div>
 </template>
-
-<template name="inviteDialog">
-  <div class="mask"> </div>
-  <div class="modal">
-    <div class="modal-header">
-      <button type="button" class="close done">&times;</button>
-      <h3>Invite people</h3>
-    </div>
-
-    <div class="modal-body">
-      {{#each uninvited}}
-        <div class="invite-row">
-          <a href="#" class="btn invite">Invite</a>
-          {{displayName}}
-        </div>
-      {{else}}
-        Everyone on the site has already been invited.
-      {{/each}}
-    </div>
-
-    <div class="modal-footer">
-      <a href="#" class="btn btn-primary done">Done</a>
-    </div>
-  </div>
-</template>
-

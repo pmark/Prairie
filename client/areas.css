@@ -27,7 +27,7 @@
 }
 
 .description {
-    margin: 20px 0 20px 0;
+    margin: 0 0 25px 0;
 }
 
 .attendance .who {
@@ -78,4 +78,16 @@ input.chosen {
     background-color: white;
     padding: 3px;
     padding-bottom: 0;
+}
+
+svg {
+    box-shadow:1px 1px 3px rgba(0,0,0, 0.5);
+}
+
+.circles {
+    border:1px solid red;
+}
+
+circle {
+    border:1px solid blue;
 }
