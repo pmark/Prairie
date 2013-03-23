@@ -72,9 +72,11 @@
 
         <div class="description">{{description}}</div>
 
-        <span class="label label-inverse">Priority</span>
-        <input id="slider-details" type="text" class="span2" value="{{priority}}" data-slider-min="0" data-slider-max="100" data-slider-step="1" data-slider-value="50" data-slider-orientation="horizontal" data-slider-selection="before" data-slider-tooltip="show">
-        <span class="label">{{priority}}</span>        
+        <span class="label label-inverse" style="margin-right:10px;">Priority</span>
+        {{#constant}}      
+        <input id="slider-details" type="text" class="span2" value="{{priorityPct}}" data-slider-min="0" data-slider-max="100" data-slider-step="1" data-slider-value="" data-slider-orientation="horizontal" data-slider-selection="before" data-slider-tooltip="hide">
+        {{/constant}}
+        <span class="label" style="margin-left:10px;">{{priorityPct}}</span>
 
         <br/>
         <br/>
@@ -132,8 +134,8 @@
 
       <br/>
       <br/>
-      <label>Priority</label>
-      <input id="slider-create" type="text" class="span2" value="" data-slider-min="0" data-slider-max="100" data-slider-step="1" data-slider-value="50" data-slider-orientation="horizontal" data-slider-selection="before" data-slider-tooltip="show">
+      <label style="margin-right:20px;">Priority</label>
+      <input id="slider-create" type="text" class="span2" value="" data-slider-min="0" data-slider-max="100" data-slider-step="1" data-slider-value="" data-slider-orientation="horizontal" data-slider-selection="before" data-slider-tooltip="show">
 
     </div>
 

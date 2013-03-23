@@ -45,8 +45,8 @@ Template.details.loggedIn = function () {
   return (Meteor.userId() != null);
 };
 
-Template.details.priority = function () {
-  return (this.priority);
+Template.details.priorityPct = function () {
+  return parseInt(this.priority * 100);
 };
 
 Template.details.rendered = function () {
@@ -129,7 +129,7 @@ Template.teamAreaZone.rendered = function ()
 
       var radius = function (area) 
       {
-        return 30 + Math.sqrt(area.priority) * 10;
+        return 30 + Math.sqrt(area.priority) * 50;
       };
 
       // Draw a circle for each area
@@ -162,7 +162,7 @@ Template.teamAreaZone.rendered = function ()
         group.attr("id", function (area) { return area._id; })
         .text(function (area) { return area.name || ''; })
         .attr("x", function (area) { return area.x * 500 - radius(area)/3; })
-        .attr("y", function (area) { return area.y * 500 + radius(area)/2.5 })
+        .attr("y", function (area) { return area.y * 500 + radius(area)/3.5 })
         .style('font-size', function (area) {
           return radius(area) * 1.25 + "px";
         });
