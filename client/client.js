@@ -10,10 +10,7 @@ Meteor.startup(function ()
   {
     if (! Session.get("selected")) 
     {
-      var area = Areas.findOne();
-    
-      if (area)
-        Session.set("selected", area._id);
+      var area = Areas.findOne();    
     }
   });
 });
@@ -58,6 +55,8 @@ Template.details.priorityPct = function () {
 };
 
 Template.details.rendered = function () {
+    var area = Session.get("selected");
+
   $('#slider-create').slider();
 
   $('#slider-details').slider()
@@ -149,6 +148,25 @@ Template.teamAreaZone.rendered = function ()
         return 30 + Math.sqrt(area.priority) * 50;
       };
 
+
+/////////
+var defaultGravity = 0.08;
+
+var width = 500,
+    height = 500
+
+var force = d3.layout.force()
+    .gravity(defaultGravity)
+    .distance(0)
+    .charge(-46)
+    .size([width, height]);
+
+  force
+      .start();
+
+  var imgSize = 44;
+
+
       // Draw a circle for each area
       var updateCircles = function (group)
       {
@@ -157,8 +175,13 @@ Template.teamAreaZone.rendered = function ()
           return area._id; 
         })
 
-        .attr("cx", function (area) { return area.x * 500; })
-        .attr("cy", function (area) { return area.y * 500; })
+        .attr("transform", function(d) 
+        { 
+          return "translate(" + d.x + "," + d.y + ")"; 
+        })
+
+        // .attr("cx", function (area) { return area.x * 500; })
+        // .attr("cy", function (area) { return area.y * 500; })
         .attr("r", radius)
         .attr("class", "public")
         .style('opacity', 0.5);
@@ -169,9 +192,23 @@ Template.teamAreaZone.rendered = function ()
           return area._id; 
         });
 
-      updateCircles(circles.enter().append("circle"));
+      updateCircles(circles.enter().append("circle")        
+        .attr("class", "node")
+        .call(force.drag));
+
       updateCircles(circles.transition().duration(250).ease("cubic-out"));
       circles.exit().transition().duration(250).attr("r", 0).remove();
+
+  force.on("tick", function() 
+  {
+        circles.attr("transform", function(d) 
+        { 
+          return "translate(" + d.x*500 + "," + d.y*500 + ")"; 
+        });
+  });
+
+
+
 
       // Label each with the current attendance count
       var updateLabels = function (group) 
