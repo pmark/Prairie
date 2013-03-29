@@ -6,13 +6,156 @@ Meteor.subscribe("areas");
 // If no area selected, select one.
 Meteor.startup(function () 
 {  
-  Deps.autorun(function () 
-  {
-    if (! Session.get("selected")) 
+    Deps.autorun(function () 
     {
-      var area = Areas.findOne();    
+        if (! Session.get("selected")) 
+        {
+            var area = Areas.findOne();    
+        }
+    });
+
+    // Set up D3 force layout.
+    var $chart = $("#chart");
+
+    var w = $chart.width(),
+        h = $chart.height(),
+        color = d3.scale.category10();
+
+    var force = d3.layout.force()
+        .gravity(0.25)
+        .charge(-2500)
+        .size([w, h]);
+
+    var NODE_TYPE_CHART_CENTER = 0,
+        NODE_TYPE_TARGET_CENTER = 1;
+
+    var nodes = force.nodes();
+
+    var targetCursor = null; //Areas.find({});
+    // var targetCount = targetCursor.count();
+    var targetItems = [
+        {name:greekLetter(0), priority:20},
+        {name:greekLetter(1), priority:50},
+        {name:greekLetter(2), priority:80}
+    ];
+
+    var targetCount = targetItems.length;
+    var targetIndex = 0;
+    var padding = 10;
+    // var targetWidth = (w / (targetCount + (padding * 2)));
+    // console.log(targetCount, " targets");
+
+    if (targetCursor) {
+        /*
+        nodes.concat(targetCursor.map(function(d) {
+            var nd = {
+                type: NODE_TYPE_TARGET_CENTER, 
+                x: w/2 - (targetCount * targetWidth/2) + (targetWidth * targetIndex++), 
+                y: h/3, 
+                fixed: false
+            };
+
+            // console.log(nd);
+            return nd;
+        }));    
+        */
     }
-  });
+    else {
+        for (var i in targetItems) {
+
+            var targetData = targetItems[i];
+            var targetWidth = radius(targetData) + padding;
+
+            var angle = (Math.PI * 2 / targetCount) * i;
+            var distance = radius({priority:100}) * 2;  // use max radius
+
+
+            var nd = {
+                type: NODE_TYPE_TARGET_CENTER, 
+                // x: w/2 - (targetCount * targetWidth/2) + (targetWidth * targetIndex++), 
+                // y: h / 3, 
+                x: w/2 + Math.cos(angle) * distance, 
+                y: h/2 + Math.sin(angle) * distance, 
+                fixed: false,
+                name: targetData.name,
+                priority: targetData.priority,
+                attractor: {x:w/2, y:h/2}
+            };
+
+            // console.log(nd);
+            nodes.push(nd);
+        }        
+    }
+
+    function radius(target) {
+        return 20 + Math.sqrt(target.priority||50) * 5
+    }
+
+    var svg = d3.select("#chart").append("svg:svg")
+        .attr("width", w)
+        .attr("height", h);
+
+    svg.selectAll("circle")
+        .data(nodes)
+        .enter().append("svg:circle")
+        .attr("r", radius)
+        .attr("cx", function(d) { return d.x; })
+        .attr("cy", function(d) { return d.y; })
+        .style("fill", fill)
+        .attr("id", function (d) { return d._id; })
+        .text(function (d) { return d.name || '?'; })
+        .style('font-size', function (d) {
+          return "12px"; //radius(d) * 1.25 + "px";
+        });
+
+    force.on("tick", function(e) {
+        
+        var k = e.alpha * .1;
+        
+        nodes.forEach(function(node) {
+            node.x += (node.attractor.x - node.x) * k;
+            node.y += (node.attractor.y - node.y) * k;
+        });
+
+        svg.selectAll("circle")
+            .attr("cx", function(d) { 
+                return d.x; 
+            })
+            .attr("cy", function(d) { return d.y; });
+    });
+
+    force.start();
+
+    var p0;
+
+    if (false) {
+        svg.on("mousemove", function() {
+            var p1 = d3.svg.mouse(this),
+            node = {type: Math.random() * 3 | 0, x: p1[0], y: p1[1], px: (p0 || (p0 = p1))[0], py: p0[1]};
+
+            p0 = p1;
+
+            svg.append("svg:circle")
+            .data([node])
+            .attr("cx", function(d) { return d.x; })
+            .attr("cy", function(d) { return d.y; })
+            .attr("r", 4.5)
+            .style("fill", fill)
+            .transition()
+            .delay(3000)
+            .attr("r", 1e-6)
+            .each("end", function() { nodes.splice(3, 1); })
+            .remove();
+
+            nodes.push(node);
+            force.start();
+        });
+    }
+
+    function fill(d) {
+        return color(d.type);
+    }
+
 });
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -148,23 +291,20 @@ Template.teamAreaZone.rendered = function ()
         return 30 + Math.sqrt(area.priority) * 50;
       };
 
+      /*
+      var defaultGravity = 0.08;
 
-/////////
-var defaultGravity = 0.08;
+      var width = 500,
+        height = 500;
 
-var width = 500,
-    height = 500
+      var force = d3.layout.force()
+        .gravity(defaultGravity)
+        .distance(0)
+        .charge(-46)
+        .size([width, height])
+        .start();
 
-var force = d3.layout.force()
-    .gravity(defaultGravity)
-    .distance(0)
-    .charge(-46)
-    .size([width, height]);
-
-  force
-      .start();
-
-  var imgSize = 44;
+      var imgSize = 44;
 
 
       // Draw a circle for each area
@@ -199,13 +339,13 @@ var force = d3.layout.force()
       updateCircles(circles.transition().duration(250).ease("cubic-out"));
       circles.exit().transition().duration(250).attr("r", 0).remove();
 
-  force.on("tick", function() 
-  {
-        circles.attr("transform", function(d) 
-        { 
-          return "translate(" + d.x*500 + "," + d.y*500 + ")"; 
-        });
-  });
+      force.on("tick", function() 
+      {
+            circles.attr("transform", function(d) 
+            { 
+              return "translate(" + d.x*500 + "," + d.y*500 + ")"; 
+            });
+      });
 
 
 
@@ -228,8 +368,7 @@ var force = d3.layout.force()
       updateLabels(labels.enter().append("text"));
       updateLabels(labels.transition().duration(250).ease("cubic-out"));
       labels.exit().remove();
-
-
+      */
     });
   }
 };

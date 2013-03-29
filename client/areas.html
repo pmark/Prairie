@@ -17,6 +17,32 @@
     {{> inviteDialog}}
   {{/if}}
 
+  <div class="container for-chart">
+    <div class="row">
+      <div class="span1"> </div>
+
+      <div class="span10">
+        <div class="row">
+          {{#constant}}
+          <div id="chart"></div>
+          {{/constant}}
+        </div>
+      </div>
+
+      <div class="span1"> </div>
+    </div>
+  </div>
+</template>
+
+<template name="pageOriginal">
+  {{#if showCreateDialog}}
+    {{> createDialog}}
+  {{/if}}
+
+  {{#if showInviteDialog}}
+    {{> inviteDialog}}
+  {{/if}}
+
   <div class="container">
     <div class="row">
       <div class="span1"> </div>
@@ -34,15 +60,13 @@
         </div>
 
         <div class="row">
-          <div class="span6">
+          <div class="span10">
             {{> teamAreaZone}}
             {{#if currentUser}}
             <div class="pagination-centered">
               <em><small>Tap an area to focus on it.</small></em>
             </div>
             {{/if}}
-          </div>
-          <div class="span4">
             {{> details}}
           </div>
         </div>
@@ -56,10 +80,7 @@
 <template name="teamAreaZone">
   <div class="team-area-zone">
     {{#constant}}
-      <svg width="100%" height="600">
-        <g class="circles"></g>
-        <g class="labels"></g>
-      </svg>
+    <div id="chart"></div>
     {{/constant}}
   </div>
 </template>
