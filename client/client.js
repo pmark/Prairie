@@ -22,14 +22,25 @@ Meteor.startup(function ()
         color = d3.scale.category10();
 
     var force = d3.layout.force()
-        .gravity(0.25)
-        .charge(-2500)
+        .gravity(0.2)  // default 0.1
+        .charge(-2000)  // default -30
+        .linkStrength(0.25) // default 1
+        // .gravity(.25)  // .25
+        // .charge(-2500)  // -2500
+        // .linkStrength(0.25)
         .size([w, h]);
 
     var NODE_TYPE_CHART_CENTER = 0,
         NODE_TYPE_TARGET_CENTER = 1;
 
-    var nodes = force.nodes();
+    var svg = d3.select("#chart").append("svg:svg")
+        .attr("width", w)
+        .attr("height", h);
+
+    var nodes = force.nodes(),
+        links = force.links(),
+        node = svg.selectAll(".node"),
+        link = svg.selectAll(".link");
 
     var targetCursor = null; //Areas.find({});
     // var targetCount = targetCursor.count();
@@ -69,14 +80,14 @@ Meteor.startup(function ()
             var angle = (Math.PI * 2 / targetCount) * i;
             var distance = radius({priority:100}) * 2;  // use max radius
 
-
             var nd = {
-                type: NODE_TYPE_TARGET_CENTER, 
+                type: "target", 
                 // x: w/2 - (targetCount * targetWidth/2) + (targetWidth * targetIndex++), 
                 // y: h / 3, 
                 x: w/2 + Math.cos(angle) * distance, 
                 y: h/2 + Math.sin(angle) * distance, 
                 fixed: false,
+                id: "target-" + i,
                 name: targetData.name,
                 priority: targetData.priority,
                 attractor: {x:w/2, y:h/2}
@@ -84,45 +95,81 @@ Meteor.startup(function ()
 
             // console.log(nd);
             nodes.push(nd);
-        }        
+        }  
+
+        // links.push({source:0, target:1});
+        // links.push({source:1, target:2});
+        // links.push({source:2, target:0});
     }
 
     function radius(target) {
-        return 20 + Math.sqrt(target.priority||50) * 5
+        if (target.type === "person") {
+            return 20;
+        }
+        else {
+            return 20 + Math.sqrt(target.priority||50) * 5;
+        }
     }
 
-    var svg = d3.select("#chart").append("svg:svg")
-        .attr("width", w)
-        .attr("height", h);
-
-    svg.selectAll("circle")
-        .data(nodes)
-        .enter().append("svg:circle")
-        .attr("r", radius)
-        .attr("cx", function(d) { return d.x; })
-        .attr("cy", function(d) { return d.y; })
-        .style("fill", fill)
-        .attr("id", function (d) { return d._id; })
-        .text(function (d) { return d.name || '?'; })
-        .style('font-size', function (d) {
-          return "12px"; //radius(d) * 1.25 + "px";
-        });
-
     force.on("tick", function(e) {
-        
+
         var k = e.alpha * .1;
-        
-        nodes.forEach(function(node) {
-            node.x += (node.attractor.x - node.x) * k;
-            node.y += (node.attractor.y - node.y) * k;
+
+        nodes.forEach(function(d) {
+            d.x += (d.attractor.x - d.x) * k;
+            d.y += (d.attractor.y - d.y) * k;
         });
 
-        svg.selectAll("circle")
-            .attr("cx", function(d) { 
-                return d.x; 
-            })
+        link.attr("x1", function(d) { return d.source.x; })
+            .attr("y1", function(d) { return d.source.y; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y; });
+
+        node
+            .attr("cx", function(d) { return d.x; })
             .attr("cy", function(d) { return d.y; });
     });
+
+    function linkId(d) {
+        var a = d.source.id;
+        var b = d.target.id;
+
+        var lower = (a < b) ? a : b;
+        var upper = (a > b) ? a : b;
+
+        return "link-" + lower + "-" + upper;
+    }
+
+    function restart() {
+        link = link.data(links);
+
+        link
+            .enter()
+            .append("line")
+            .attr("id", linkId)
+            .attr("class", "link")
+            .attr("x1", function(d) { return d.source.x; })
+            .attr("y1", function(d) { return d.source.y; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y; });
+
+        link
+            .exit().remove();
+
+        node = node.data(nodes);
+
+        node
+            .enter().insert("svg:circle")
+            .attr("r", radius)
+            .style("fill", fill)
+            .attr("class", function(d) { return d.type; })
+            .attr("id", function (d) { return d.id; }) // use meteor's d._id maybe
+            .on("click", itemWasClicked)
+            .call(force.drag);
+
+        force.start();
+    }
+
 
     force.start();
 
@@ -130,19 +177,26 @@ Meteor.startup(function ()
 
     if (false) {
         svg.on("mousemove", function() {
-            var p1 = d3.svg.mouse(this),
-            node = {type: Math.random() * 3 | 0, x: p1[0], y: p1[1], px: (p0 || (p0 = p1))[0], py: p0[1]};
+            var p1 = d3.svg.mouse(this);
+
+
+            var target = nodes[Math.random() * 3 | 0];
+
+            var node = {
+                priority: target.priority, x: p1[0], y: p1[1], px: (p0 || (p0 = p1))[0], py: p0[1],
+                attractor: (target ? target.attractor : {x:w/3, y:h/3})
+            };
 
             p0 = p1;
 
             svg.append("svg:circle")
             .data([node])
-            .attr("cx", function(d) { return d.x; })
-            .attr("cy", function(d) { return d.y; })
-            .attr("r", 4.5)
+            // .attr("cx", function(d) { return d.x; })
+            // .attr("cy", function(d) { return d.y; })
+            .attr("r", function(d){return 5;})
             .style("fill", fill)
             .transition()
-            .delay(3000)
+            .delay(5500)
             .attr("r", 1e-6)
             .each("end", function() { nodes.splice(3, 1); })
             .remove();
@@ -152,9 +206,146 @@ Meteor.startup(function ()
         });
     }
 
-    function fill(d) {
-        return color(d.type);
+    function addPeople() {
+
+        var totalPersonCount = 6;
+        var personPadding = (h / totalPersonCount);
+
+        for (var i=0; i < totalPersonCount; i++) {
+            var newNode = {
+                id: "person-" + i,
+                type: "person",
+                name:"Joe",
+                // x: w,
+                // y: (i * personPadding) + personPadding/2, 
+                attractor:{
+                    x:w/2, 
+                    y:h/2 
+                }
+            };
+
+            nodes.push(newNode);            
+        }
+    };
+
+    var selectedItem = null;
+
+    function findNodeById(nodeId) {
+        for (var i=0; i < nodes.length; i++) {
+            var n = nodes[i];
+
+            if (n.id === nodeId) {
+                return n;
+            }
+        }
+
+        return null;
     }
+
+    function indexOfLink(link) {
+        var index = -1;
+
+        links.forEach(function(l, i) {
+            if ((link.source.id == l.source.id && link.target.id == l.target.id) ||
+                (link.target.id == l.source.id && link.source.id == l.target.id)) {
+                index = i;
+                return;
+            }
+        })
+
+        return index;
+    }
+
+    function itemWasClicked(d) {
+
+        var d3Element = d3.select(this);
+        var alreadySelected = (d3Element.attr("data-selected") === "1");
+
+        // console.log(d);
+        var newSelectedItem = d;
+
+        // Deselect all items
+        $("circle").attr("data-selected", "0");
+
+        if (alreadySelected) {
+            // The selected item was deselected.
+            // Nothing is selected now.
+            selectedItem = null;
+        }
+        else {
+            var oldSelectedItem = selectedItem;
+
+            if (oldSelectedItem) {
+
+                if (oldSelectedItem.type !== newSelectedItem.type) {
+                    // Connect this item to other if it's a different type
+
+                    var newLink = {
+                        source:newSelectedItem,
+                        target:oldSelectedItem
+                    };
+
+                    if ((li = indexOfLink(newLink)) == -1) {
+                        // Add a new link
+                        links.push(newLink);
+                    }
+                    else {
+                        // Remove the link
+                        links.splice(li, 1);
+                        // d3.select("#" + linkId(newLink)).remove();
+                        // $("#" + linkId(newLink)).remove();
+                    }
+
+                    selectedItem = null;
+                    restart();                    
+                }
+                else {
+                    // Change selection 
+                    selectedItem = newSelectedItem;
+                    d3Element.attr("data-selected", "1");
+                }
+            }
+            else {
+                selectedItem = newSelectedItem;
+                d3Element.attr("data-selected", "1");
+            }
+        }
+    }
+    
+    function addControlEventHandlers() {
+
+        svg.on("dblclick", function() {
+
+            var p1 = d3.svg.mouse(this);
+
+            var target = {
+                name:greekLetter(nodes.length), 
+                priority:50,
+                attractor:{x:w/2, y:h/2}
+            };
+
+            var newNode = {
+                type: "target",
+                priority: target.priority, 
+                x: p1[0], 
+                y: p1[1], 
+                // px: (p0 || (p0 = p1))[0], 
+                // py: p0[1],
+                attractor: target.attractor
+            };
+
+            nodes.push(newNode);
+            restart();
+        });
+    };
+
+    function fill(d) {
+        return color(d.priority);
+    }
+
+    addPeople();
+    restart();
+    addControlEventHandlers();
 
 });
 

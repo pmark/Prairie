@@ -111,3 +111,14 @@ circle {
     stroke-width: 3px;
     opacity: 0.8;
 }
+
+[data-selected="1"] {
+    stroke:black;
+    stroke-width:5px;
+    opacity:1.0;
+}
+
+.link {
+    stroke:yellow;
+    stroke-width:3px;
+}
