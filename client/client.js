@@ -42,6 +42,8 @@ Meteor.startup(function ()
         node = svg.selectAll(".node"),
         link = svg.selectAll(".link");
 
+    var targetLabel = svg.select(".target-label text");
+
     var targetCursor = null; //Areas.find({});
     // var targetCount = targetCursor.count();
     var targetItems = [
@@ -125,6 +127,8 @@ Meteor.startup(function ()
             .attr("x2", function(d) { return d.target.x; })
             .attr("y2", function(d) { return d.target.y; });
 
+        // node
+        //     .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
         node
             .attr("cx", function(d) { return d.x; })
             .attr("cy", function(d) { return d.y; });
@@ -154,12 +158,17 @@ Meteor.startup(function ()
             .attr("y2", function(d) { return d.target.y; });
 
         link
-            .exit().remove();
+            .exit()
+            .remove();
 
         node = node.data(nodes);
 
-        node
-            .enter().insert("svg:circle")
+            // .append("g")
+            // .attr("class", "node")
+            // .call(force.drag);
+
+        node.enter()
+            .insert("svg:circle")
             .attr("r", radius)
             .style("fill", fill)
             .attr("class", function(d) { return d.type; })
@@ -167,9 +176,35 @@ Meteor.startup(function ()
             .on("click", itemWasClicked)
             .call(force.drag);
 
+        // node
+        //     .append("image")
+        //     .attr("xlink:href", "https://github.com/favicon.ico")
+        //     .attr("x", -8)
+        //     .attr("y", -8)
+        //     .attr("width", 16)
+        //     .attr("height", 16);
+
+        // node
+        //     .append("text")
+        //     .attr("dy", ".35em")
+        //     .attr("text-anchor", "middle")
+        //     .text(function(d) { return d.name; });
+
         force.start();
     }
 
+
+    //   // Label each with the current attendance count
+    //   var updateLabels = function (group) 
+    //   {
+    //     group.attr("id", function (area) { return area._id; })
+    //     .text(function (area) { return area.name || ''; })
+    //     .attr("x", function (area) { return area.x * 500 - radius(area)/3; })
+    //     .attr("y", function (area) { return area.y * 500 + radius(area)/3.5 })
+    //     .style('font-size', function (area) {
+    //       return radius(area) * 1.25 + "px";
+    //   });
+    // };
 
     force.start();
 
