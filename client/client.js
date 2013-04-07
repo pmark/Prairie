@@ -1,4 +1,17 @@
-// All Tomorrow's Areas -- client
+var $chart = null,
+    w = null,
+    h = null,
+    svg = null,
+    nodeSet = null,
+    linkSet = null,
+    node = null,
+    link = null,
+    color = null,
+    force = null,
+    selectedItem = null;
+
+
+// All Tomorrow's Targets -- client
 
 Meteor.subscribe("directory");
 Meteor.subscribe("areas");
@@ -14,14 +27,23 @@ Meteor.startup(function ()
         }
     });
 
+    $chart = $("#chart");
+    w = $chart.width();
+    h = $chart.height();
+
+    useTheForce();
+    addPeople();
+    restart();
+    addControlEventHandlers();
+});
+
+function useTheForce()
+{
     // Set up D3 force layout.
-    var $chart = $("#chart");
 
-    var w = $chart.width(),
-        h = $chart.height(),
-        color = d3.scale.category10();
+    color = d3.scale.category10();
 
-    var force = d3.layout.force()
+    force = d3.layout.force()
         .gravity(0.2)  // default 0.1
         .charge(-2000)  // default -30
         .linkStrength(0.25) // default 1
@@ -33,19 +55,18 @@ Meteor.startup(function ()
     var NODE_TYPE_CHART_CENTER = 0,
         NODE_TYPE_TARGET_CENTER = 1;
 
-    var svg = d3.select("#chart").append("svg:svg")
+    svg = d3.select("#chart").append("svg:svg")
         .attr("width", w)
         .attr("height", h);
 
-    var nodes = force.nodes(),
-        links = force.links(),
-        node = svg.selectAll(".node"),
-        link = svg.selectAll(".link");
+    nodeSet = force.nodes();
+    linkSet = force.links();
+
+    node = svg.selectAll(".node"),
+    link = svg.selectAll(".link");
 
     var targetLabel = svg.select(".target-label text");
 
-    var targetCursor = null; //Areas.find({});
-    // var targetCount = targetCursor.count();
     var targetItems = [
         {name:greekLetter(0), priority:20},
         {name:greekLetter(1), priority:50},
@@ -56,73 +77,44 @@ Meteor.startup(function ()
     var targetIndex = 0;
     var padding = 10;
     // var targetWidth = (w / (targetCount + (padding * 2)));
-    // console.log(targetCount, " targets");
 
-    if (targetCursor) {
-        /*
-        nodes.concat(targetCursor.map(function(d) {
-            var nd = {
-                type: NODE_TYPE_TARGET_CENTER, 
-                x: w/2 - (targetCount * targetWidth/2) + (targetWidth * targetIndex++), 
-                y: h/3, 
-                fixed: false
-            };
+    for (var i in targetItems) {
 
-            // console.log(nd);
-            return nd;
-        }));    
-        */
-    }
-    else {
-        for (var i in targetItems) {
+        var targetData = targetItems[i];
+        var targetWidth = radius(targetData) + padding;
 
-            var targetData = targetItems[i];
-            var targetWidth = radius(targetData) + padding;
+        var angle = (Math.PI * 2 / targetCount) * i;
+        var distance = radius({priority:100}) * 2;  // use max radius
 
-            var angle = (Math.PI * 2 / targetCount) * i;
-            var distance = radius({priority:100}) * 2;  // use max radius
+        var nd = {
+            type: "target", 
+            // x: w/2 - (targetCount * targetWidth/2) + (targetWidth * targetIndex++), 
+            // y: h / 3, 
+            x: w/2 + Math.cos(angle) * distance, 
+            y: h/2 + Math.sin(angle) * distance, 
+            fixed: false,
+            id: "target-" + i,
+            name: targetData.name,
+            priority: targetData.priority,
+            attractor: {x:w/2, y:h/2}
+        };
 
-            var nd = {
-                type: "target", 
-                // x: w/2 - (targetCount * targetWidth/2) + (targetWidth * targetIndex++), 
-                // y: h / 3, 
-                x: w/2 + Math.cos(angle) * distance, 
-                y: h/2 + Math.sin(angle) * distance, 
-                fixed: false,
-                id: "target-" + i,
-                name: targetData.name,
-                priority: targetData.priority,
-                attractor: {x:w/2, y:h/2}
-            };
-
-            // console.log(nd);
-            nodes.push(nd);
-        }  
-
-        // links.push({source:0, target:1});
-        // links.push({source:1, target:2});
-        // links.push({source:2, target:0});
+        nodeSet.push(nd);
     }
 
-    function radius(target) {
-        if (target.type === "person") {
-            return 20;
-        }
-        else {
-            return 20 + Math.sqrt(target.priority||50) * 5;
-        }
-    }
+    console.log(nodeSet);
 
     force.on("tick", function(e) {
 
         var k = e.alpha * .1;
 
-        nodes.forEach(function(d) {
+        nodeSet.forEach(function(d) {
             d.x += (d.attractor.x - d.x) * k;
             d.y += (d.attractor.y - d.y) * k;
         });
 
-        link.attr("x1", function(d) { return d.source.x; })
+        link
+            .attr("x1", function(d) { return d.source.x; })
             .attr("y1", function(d) { return d.source.y; })
             .attr("x2", function(d) { return d.target.x; })
             .attr("y2", function(d) { return d.target.y; });
@@ -134,164 +126,119 @@ Meteor.startup(function ()
             .attr("cy", function(d) { return d.y; });
     });
 
-    function linkId(d) {
-        var a = d.source.id;
-        var b = d.target.id;
+    force.start();
+}
 
-        var lower = (a < b) ? a : b;
-        var upper = (a > b) ? a : b;
+function restart() {
+    link = link.data(linkSet);
 
-        return "link-" + lower + "-" + upper;
-    }
+    link
+        .enter()
+        .append("line")
+        .attr("id", linkId)
+        .attr("class", "link")
+        .attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
 
-    function restart() {
-        link = link.data(links);
+    link
+        .exit()
+        .remove();
 
-        link
-            .enter()
-            .append("line")
-            .attr("id", linkId)
-            .attr("class", "link")
-            .attr("x1", function(d) { return d.source.x; })
-            .attr("y1", function(d) { return d.source.y; })
-            .attr("x2", function(d) { return d.target.x; })
-            .attr("y2", function(d) { return d.target.y; });
+    node = node.data(nodeSet);
 
-        link
-            .exit()
-            .remove();
+        // .append("g")
+        // .attr("class", "node")
+        // .call(force.drag);
 
-        node = node.data(nodes);
+    node.enter()
+        .insert("svg:circle")
+        .attr("r", radius)
+        .style("fill", fill)
+        .attr("class", function(d) { return d.type; })
+        .attr("id", function (d) { return d.id; }) // use meteor's d._id maybe
+        .on("click", itemWasClicked)
+        .call(force.drag);
 
-            // .append("g")
-            // .attr("class", "node")
-            // .call(force.drag);
+    // node
+    //     .append("image")
+    //     .attr("xlink:href", "https://github.com/favicon.ico")
+    //     .attr("x", -8)
+    //     .attr("y", -8)
+    //     .attr("width", 16)
+    //     .attr("height", 16);
 
-        node.enter()
-            .insert("svg:circle")
-            .attr("r", radius)
-            .style("fill", fill)
-            .attr("class", function(d) { return d.type; })
-            .attr("id", function (d) { return d.id; }) // use meteor's d._id maybe
-            .on("click", itemWasClicked)
-            .call(force.drag);
-
-        // node
-        //     .append("image")
-        //     .attr("xlink:href", "https://github.com/favicon.ico")
-        //     .attr("x", -8)
-        //     .attr("y", -8)
-        //     .attr("width", 16)
-        //     .attr("height", 16);
-
-        // node
-        //     .append("text")
-        //     .attr("dy", ".35em")
-        //     .attr("text-anchor", "middle")
-        //     .text(function(d) { return d.name; });
-
-        force.start();
-    }
-
-
-    //   // Label each with the current attendance count
-    //   var updateLabels = function (group) 
-    //   {
-    //     group.attr("id", function (area) { return area._id; })
-    //     .text(function (area) { return area.name || ''; })
-    //     .attr("x", function (area) { return area.x * 500 - radius(area)/3; })
-    //     .attr("y", function (area) { return area.y * 500 + radius(area)/3.5 })
-    //     .style('font-size', function (area) {
-    //       return radius(area) * 1.25 + "px";
-    //   });
-    // };
+    // node
+    //     .append("text")
+    //     .attr("dy", ".35em")
+    //     .attr("text-anchor", "middle")
+    //     .text(function(d) { return d.name; });
 
     force.start();
+}
 
-    var p0;
+function linkId(d) {
+    var a = d.source.id;
+    var b = d.target.id;
 
-    if (false) {
-        svg.on("mousemove", function() {
-            var p1 = d3.svg.mouse(this);
+    var lower = (a < b) ? a : b;
+    var upper = (a > b) ? a : b;
 
+    return "link-" + lower + "-" + upper;
+}
 
-            var target = nodes[Math.random() * 3 | 0];
+function addPeople() {
 
-            var node = {
-                priority: target.priority, x: p1[0], y: p1[1], px: (p0 || (p0 = p1))[0], py: p0[1],
-                attractor: (target ? target.attractor : {x:w/3, y:h/3})
-            };
+    var totalPersonCount = 6;
+    var personPadding = (h / totalPersonCount);
 
-            p0 = p1;
-
-            svg.append("svg:circle")
-            .data([node])
-            // .attr("cx", function(d) { return d.x; })
-            // .attr("cy", function(d) { return d.y; })
-            .attr("r", function(d){return 5;})
-            .style("fill", fill)
-            .transition()
-            .delay(5500)
-            .attr("r", 1e-6)
-            .each("end", function() { nodes.splice(3, 1); })
-            .remove();
-
-            nodes.push(node);
-            force.start();
-        });
-    }
-
-    function addPeople() {
-
-        var totalPersonCount = 6;
-        var personPadding = (h / totalPersonCount);
-
-        for (var i=0; i < totalPersonCount; i++) {
-            var newNode = {
-                id: "person-" + i,
-                type: "person",
-                name:"Joe",
-                // x: w,
-                // y: (i * personPadding) + personPadding/2, 
-                attractor:{
-                    x:w/2, 
-                    y:h/2 
-                }
-            };
-
-            nodes.push(newNode);            
-        }
-    };
-
-    var selectedItem = null;
-
-    function findNodeById(nodeId) {
-        for (var i=0; i < nodes.length; i++) {
-            var n = nodes[i];
-
-            if (n.id === nodeId) {
-                return n;
+    for (var i=0; i < totalPersonCount; i++) {
+        var newNode = {
+            id: "person-" + i,
+            type: "person",
+            name:"Joe",
+            // x: w,
+            // y: (i * personPadding) + personPadding/2, 
+            attractor:{
+                x:w/2, 
+                y:h/2 
             }
+        };
+
+        nodeSet.push(newNode);            
+    }
+
+    restart();
+};
+
+function findNodeById(nodeId) {
+    for (var i=0; i < nodeSet.length; i++) {
+        var n = nodes[i];
+
+        if (n.id === nodeId) {
+            return n;
         }
-
-        return null;
     }
 
-    function indexOfLink(link) {
-        var index = -1;
+    return null;
+}
 
-        links.forEach(function(l, i) {
-            if ((link.source.id == l.source.id && link.target.id == l.target.id) ||
-                (link.target.id == l.source.id && link.source.id == l.target.id)) {
-                index = i;
-                return;
-            }
-        })
+function indexOfLink(link) {
+    var index = -1;
 
-        return index;
-    }
+    linkSet.forEach(function(l, i) {
+        if ((link.source.id == l.source.id && link.target.id == l.target.id) ||
+            (link.target.id == l.source.id && link.source.id == l.target.id)) {
+            index = i;
+            return;
+        }
+    })
 
-    function itemWasClicked(d) {
+    return index;
+}
+
+function itemWasClicked(d) {
 
         var d3Element = d3.select(this);
         var alreadySelected = (d3Element.attr("data-selected") === "1");
@@ -322,11 +269,11 @@ Meteor.startup(function ()
 
                     if ((li = indexOfLink(newLink)) == -1) {
                         // Add a new link
-                        links.push(newLink);
+                        linkSet.push(newLink);
                     }
                     else {
                         // Remove the link
-                        links.splice(li, 1);
+                        linkSet.splice(li, 1);
                         // d3.select("#" + linkId(newLink)).remove();
                         // $("#" + linkId(newLink)).remove();
                     }
@@ -345,44 +292,49 @@ Meteor.startup(function ()
                 d3Element.attr("data-selected", "1");
             }
         }
-    }
+}
     
-    function addControlEventHandlers() {
+function addControlEventHandlers() {
 
-        svg.on("dblclick", function() {
+    svg.on("dblclick", function() {
 
-            var p1 = d3.svg.mouse(this);
+        var p1 = d3.svg.mouse(this);
 
-            var target = {
-                name:greekLetter(nodes.length), 
-                priority:50,
-                attractor:{x:w/2, y:h/2}
-            };
+        var target = {
+            name:greekLetter(nodeSet.length), 
+            priority:50,
+            attractor:{x:w/2, y:h/2}
+        };
 
-            var newNode = {
-                type: "target",
-                priority: target.priority, 
-                x: p1[0], 
-                y: p1[1], 
-                // px: (p0 || (p0 = p1))[0], 
-                // py: p0[1],
-                attractor: target.attractor
-            };
+        var newNode = {
+            type: "target",
+            priority: target.priority, 
+            x: p1[0], 
+            y: p1[1], 
+            // px: (p0 || (p0 = p1))[0], 
+            // py: p0[1],
+            attractor: target.attractor
+        };
 
-            nodes.push(newNode);
-            restart();
-        });
-    };
+        nodeSet.push(newNode);
+        restart();
+    });
+};
 
-    function fill(d) {
-        return color(d.priority);
+function radius(target) {
+    if (target.type === "person") {
+        return 20;
     }
+    else {
+        return 20 + Math.sqrt(target.priority||50) * 5;
+    }
+}
 
-    addPeople();
-    restart();
-    addControlEventHandlers();
+function fill(d) {
+    return color(d.priority);
+}
 
-});
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Area details sidebar

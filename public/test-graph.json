@@ -1,0 +1,31 @@
+{
+  "nodes": [
+    { "type": 0, "name": "CB", "value": 50},
+    { "type": 0, "name": "SH", "value": 50},
+    { "type": 0, "name": "CMW", "value": 50},
+    { "type": 0, "name": "MP", "value": 50},
+    { "type": 0, "name": "MK", "value": 50},
+    { "type": 0, "name": "ETB", "value": 50},
+    { "type": 0, "name": "Wm", "value": 50},
+    { "type": 0, "name": "PMA", "value": 50},    
+    { "type": 1, "name": "α", "value": 50},
+    { "type": 1, "name": "β", "value": 50},
+    { "type": 1, "name": "γ", "value": 50},
+    { "type": 1, "name": "δ", "value": 50},
+    { "type": 1, "name": "ε", "value": 50}
+  ],
+  "links": [
+    {"source": 0, "target": 1 },
+    {"source": 1, "target": 2 },
+    {"source": 1, "target": 3 },
+    {"source": 2, "target": 5 },
+    {"source": 2, "target": 6 },
+    {"source": 1, "target": 4 },
+    {"source": 3, "target": 10},
+    {"source": 3, "target": 11},
+    {"source": 0, "target": 7 },
+    {"source": 0, "target": 8 },
+    {"source": 0, "target": 9 },
+    {"source": 5, "target": 12}
+  ]
+}
