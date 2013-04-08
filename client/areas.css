@@ -107,18 +107,48 @@ svg {
 }
 
 circle {
-    stroke: skyblue;
-    stroke-width: 3px;
+    /*stroke: skyblue;*/
+    stroke-width: 2px;
     opacity: 0.8;
 }
 
 [data-selected="1"] {
-    stroke:black;
-    stroke-width:5px;
+    /*stroke-width:6px;*/
     opacity:1.0;
+}
+
+[data-highlighted="1"] {
+}
+
+[data-highlighted="0"] {
+}
+
+[data-invalid="1"] {
+    fill-opacity:0.15;
+    stroke-opacity:0.15;
+}
+
+[data-invalid="0"] {
+    fill-opacity:1.0;
+    stroke-opacity:1.0;
 }
 
 .link {
     stroke:yellow;
-    stroke-width:3px;
+    stroke-width:4px;
+}
+
+div.tooltip {   
+  position: absolute;           
+  text-align: center;           
+  vertical-align: middle;
+  width: 60px;     
+  height: 14px;
+  line-height:28px;                
+  padding: 2px;             
+  font: 12px sans-serif;        
+  background: white;   
+  border: 1px solid #efefef;      
+  border-radius: 8px;           
+  pointer-events: none;         
 }
