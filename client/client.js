@@ -8,6 +8,7 @@ var $chart = null,
     link = null,
     color = null,
     force = null,
+    tooltip = null,
     selectedItem = null;
 
 
@@ -37,19 +38,17 @@ Meteor.startup(function ()
     addControlEventHandlers();
 });
 
-function useTheForce()
-{
+function useTheForce() {
     // Set up D3 force layout.
 
-    color = d3.scale.category10();
+    color = d3.scale.category20();
+
+    var gravityScale = d3.scale.linear().domain([320,1280]).range([0.5, 0.09]);
 
     force = d3.layout.force()
-        .gravity(0.2)  // default 0.1
-        .charge(-2000)  // default -30
-        .linkStrength(0.25) // default 1
-        // .gravity(.25)  // .25
-        // .charge(-2500)  // -2500
-        // .linkStrength(0.25)
+        .gravity(gravityScale(w))  // default 0.1
+        .charge(-2100)  // default -30
+        .linkStrength(0.08) // default 1
         .size([w, h]);
 
     var NODE_TYPE_CHART_CENTER = 0,
@@ -65,12 +64,16 @@ function useTheForce()
     node = svg.selectAll(".node"),
     link = svg.selectAll(".link");
 
+    tooltip = d3.select("body").append("div")   
+        .attr("class", "tooltip")               
+        .style("opacity", 0);
+
     var targetLabel = svg.select(".target-label text");
 
     var targetItems = [
         {name:greekLetter(0), priority:20},
         {name:greekLetter(1), priority:50},
-        {name:greekLetter(2), priority:80}
+        {name:greekLetter(2), priority:100}
     ];
 
     var targetCount = targetItems.length;
@@ -92,7 +95,6 @@ function useTheForce()
             // y: h / 3, 
             x: w/2 + Math.cos(angle) * distance, 
             y: h/2 + Math.sin(angle) * distance, 
-            fixed: false,
             id: "target-" + i,
             name: targetData.name,
             priority: targetData.priority,
@@ -102,15 +104,14 @@ function useTheForce()
         nodeSet.push(nd);
     }
 
-    console.log(nodeSet);
-
     force.on("tick", function(e) {
 
         var k = e.alpha * .1;
+        var edgePadding = 6;
 
         nodeSet.forEach(function(d) {
-            d.x += (d.attractor.x - d.x) * k;
-            d.y += (d.attractor.y - d.y) * k;
+            d.x = Math.min(w-edgePadding, Math.max(edgePadding, d.x + (d.attractor.x - d.x) * k));
+            d.y = Math.min(h-edgePadding, Math.max(edgePadding, d.y + (d.attractor.y - d.y) * k));
         });
 
         link
@@ -134,9 +135,11 @@ function restart() {
 
     link
         .enter()
-        .append("line")
+        .insert("line", "circle")
         .attr("id", linkId)
         .attr("class", "link")
+        .attr("stroke-dasharray", "1, 6")
+        .attr("stroke-linecap", "round")
         .attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
         .attr("x2", function(d) { return d.target.x; })
@@ -153,12 +156,27 @@ function restart() {
         // .call(force.drag);
 
     node.enter()
-        .insert("svg:circle")
+        .append("svg:circle")
         .attr("r", radius)
         .style("fill", fill)
         .attr("class", function(d) { return d.type; })
+        .attr("type", function (d) { return d.type; })
         .attr("id", function (d) { return d.id; }) // use meteor's d._id maybe
+        .style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.7); })
         .on("click", itemWasClicked)
+        .on("mouseover", function(d) {      
+            tooltip.text(d.name)
+                .transition()        
+                .duration(150)
+                .style("opacity", .9);
+
+            setTimeout(function() {
+                tooltip.style("opacity", 0);
+            }, 1000);
+        })
+        .on("mouseout", function(d) {       
+            tooltip.style("opacity", 0);   
+        })
         .call(force.drag);
 
     // node
@@ -247,7 +265,8 @@ function itemWasClicked(d) {
         var newSelectedItem = d;
 
         // Deselect all items
-        $("circle").attr("data-selected", "0");
+        setElementSelected(node, false);
+        setElementInvalid(node, false);
 
         if (alreadySelected) {
             // The selected item was deselected.
@@ -256,6 +275,7 @@ function itemWasClicked(d) {
         }
         else {
             var oldSelectedItem = selectedItem;
+            var changeSelection = false;
 
             if (oldSelectedItem) {
 
@@ -270,6 +290,7 @@ function itemWasClicked(d) {
                     if ((li = indexOfLink(newLink)) == -1) {
                         // Add a new link
                         linkSet.push(newLink);
+                        flashElement(d3Element);
                     }
                     else {
                         // Remove the link
@@ -282,51 +303,198 @@ function itemWasClicked(d) {
                     restart();                    
                 }
                 else {
-                    // Change selection 
-                    selectedItem = newSelectedItem;
-                    d3Element.attr("data-selected", "1");
+                    changeSelection = true;
                 }
             }
             else {
+                changeSelection = true;
+            }
+
+            if (changeSelection) {
+                // Change selection 
                 selectedItem = newSelectedItem;
-                d3Element.attr("data-selected", "1");
+                setElementSelected(d3Element, true);
+                setElementSelected(allElementsLinkedToElement(d3Element), true, false);                
+                setElementInvalid(otherSameElements(d3Element), true);
             }
         }
 }
+
+function allElementsLinkedToElement(element) {
+    var a = [];
+
+    linkSet.forEach(function(l) {
+        if (l.target.id === element.attr("id")) {
+            a.push("#" + l.source.id);
+        } else if (l.source.id === element.attr("id")) {
+            a.push("#" + l.target.id);
+        }
+    });
+
+    if (a.length > 0)
+        return d3.selectAll(a.join(","));
+    else
+        return null;
+}
+
+function allDifferentElementsNotLinkedToElement(element) {
+    var a = [];
+
+    nodeSet.forEach(function(n) {
+
+        if (n.id !== element.attr("id") && n.type !== element.attr("type")) {
+            a.push("#" + n.id);
+        } 
+    });
+
+    // linkSet.forEach(function(l) {
+    //     console.log("targ:", l.target);
+
+    //     if (l.target.id !== element.attr("id") && l.target.type !== element.type) {
+    //         a.push("#" + l.source.id);
+    //     } else if (l.source.id !== element.attr("id") && l.target.type !== element.type) {
+    //         a.push("#" + l.target.id);
+    //     }
+    // });
+
+    console.log("ad:", a);
+    if (a.length > 0)
+        return d3.selectAll(a.join(","));
+    else
+        return null;
+}
+
+function otherSameElements(element) {
+    var a = [];
+
+    nodeSet.forEach(function(n) {
+
+        if (n.id !== element.attr("id") && n.type === element.attr("type")) {
+            a.push("#" + n.id);
+        } 
+    });
+
+    if (a.length > 0)
+        return d3.selectAll(a.join(","));
+    else
+        return null;
+}
+
+function setElementInvalid(element, invalid) {
+    if (!element || element.length == 0) {
+        return;
+    }
+
+    element
+        .attr("data-invalid", (invalid ? "1" : "0"))
+}
+
+function setElementHighlighted(element, highlighted) {
+    if (!element || element.length == 0) {
+        return;
+    }
+
+    element
+        .attr("data-highlighted", (highlighted ? "1" : "0"))
+}
+
+function setElementSelected(element, selected, setData) {
+    if (!element || element.length == 0) {
+        return;
+    }
+
+    if (setData == null) {
+        setData = true;
+    }
+
+    var extendedSelection = !setData;
+
+    if (setData) {
+        element.attr("data-selected", (selected ? "1" : "0"));
+    }
+
+    if (selected) {
+        if (extendedSelection) {
+            
+            // This element is linked to the selected node.
+            
+            element
+                .transition().duration(250)
+                .style("stroke-width", "4")
+                .attr("stroke-dasharray", "20,5");
+                // .style("opacity", 0.5)
+                // .style("stroke", d3.rgb(255, 255, 255));
+        }
+        else {
+            element
+                .transition().duration(250)
+                .style("stroke-width", "8")
+                .attr("stroke-dasharray", "1,0");
+        }
+    }
+    else {
+        element
+            .transition().duration(250)
+            .style("stroke-width", "2")
+            .attr("stroke-dasharray", "1,0");
+    }
+}
     
+function flashElement(element) {
+    var wold = element.style("stroke-width");
+    var oold = element.style("opacity");
+
+    element
+        .attr("stroke-dasharray", "20,5")
+        .style("stroke-width", "50")
+        .style("opacity", "0.5")
+        .transition().duration(600).ease("cubic-out")
+        .style("opacity", oold)
+        .style("stroke-width", wold)
+        .attr("stroke-dasharray", "1,0");
+}
+
 function addControlEventHandlers() {
 
     svg.on("dblclick", function() {
 
         var p1 = d3.svg.mouse(this);
 
-        var target = {
-            name:greekLetter(nodeSet.length), 
-            priority:50,
-            attractor:{x:w/2, y:h/2}
-        };
-
         var newNode = {
+            id: "target-" + nodeSet.length,
             type: "target",
-            priority: target.priority, 
+            priority:Math.random()*100,
+            name:greekLetter(nodeSet.length),
+            attractor:{x:w/2, y:h/2},
             x: p1[0], 
-            y: p1[1], 
-            // px: (p0 || (p0 = p1))[0], 
-            // py: p0[1],
-            attractor: target.attractor
+            y: p1[1]
         };
 
         nodeSet.push(newNode);
         restart();
+    })
+    .on("mousemove", function(e) {
+        tooltip
+            .style("left", (d3.event.pageX - 30) + "px")
+            .style("top", (d3.event.pageY + 28) + "px");
+
     });
 };
 
 function radius(target) {
+    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([40,80]);
+    var TARGET_RADIUS_MAX = screenWidthScale(w);
+    var TARGET_RADIUS_MIN = TARGET_RADIUS_MAX / 2;
+
     if (target.type === "person") {
-        return 20;
+        return TARGET_RADIUS_MIN * 0.6;
     }
     else {
-        return 20 + Math.sqrt(target.priority||50) * 5;
+        var radiusScale = d3.scale.linear()
+                            .domain([0,100])  // input
+                            .range([TARGET_RADIUS_MIN, TARGET_RADIUS_MAX]);  // output
+
+        return radiusScale(target.priority);
     }
 }
 
