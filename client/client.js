@@ -14,7 +14,8 @@ var $chart = null,
     titleField = null,
     descriptionField = null,
     prioritySlider = null,
-    selectedItem = null;
+    selectedItem = null,
+    clickCount = 0;
 
 
 // All Tomorrow's Targets -- client
@@ -233,6 +234,8 @@ function restart() {
         })
         .call(force.drag);
 
+    node.exit().remove();
+
     // node
     //     .append("image")
     //     .attr("xlink:href", "https://github.com/favicon.ico")
@@ -296,6 +299,18 @@ function findNodeById(nodeId) {
     return null;
 }
 
+function indexOfNode(node) {
+    var index = -1;
+
+    nodeSet.forEach(function(n, i) {
+        if (n.id === node.id) {
+            index = i;
+        }
+    });
+
+    return index;
+}
+
 function indexOfLink(link) {
     var index = -1;
 
@@ -303,7 +318,6 @@ function indexOfLink(link) {
         if ((link.source.id == l.source.id && link.target.id == l.target.id) ||
             (link.target.id == l.source.id && link.source.id == l.target.id)) {
             index = i;
-            return;
         }
     })
 
@@ -323,6 +337,7 @@ function setItemOpen(d, open) {
         .attr("r", radius(d));                
 
         $(".edit-box").hide();
+
     }
     else {
         // open
@@ -342,79 +357,78 @@ function setItemOpen(d, open) {
 
 function itemWasClicked(d) {
 
-        var d3Element = d3.select(this);
-        var alreadySelected = (d3Element.attr("data-selected") === "1");
+    clickCount++;
 
-        // console.log(d);
-        var newSelectedItem = d;
+    var d3Element = d3.select(this);
+    var alreadySelected = (d3Element.attr("data-selected") === "1");
 
-        if (alreadySelected) {
+    // console.log(d);
+    var newSelectedItem = d;
 
-            if (d.type === "target")
-            {
-                setItemOpen(d, !d.open);
-            }
-            else {
-                setElementSelected(node, false);
-                setElementInvalid(node, false);
-                selectedItem = null;
-            }
+    if (alreadySelected) {
 
+        if (d.type === "target")
+        {
+            setItemOpen(d, !d.open);
         }
         else {
-            // Deselect all items
             setElementSelected(node, false);
             setElementInvalid(node, false);
+            selectedItem = null;
+        }
+    }
+    else {
+        // Deselect all items
+        setElementSelected(node, false);
+        setElementInvalid(node, false);
 
-            var oldSelectedItem = selectedItem;
-            var changeSelection = false;
+        var oldSelectedItem = selectedItem;
+        var changeSelection = false;
 
-            if (oldSelectedItem) {
+        if (oldSelectedItem) {
 
-                if (oldSelectedItem.type !== newSelectedItem.type) {
-                    // Connect this item to other if it's a different type
+            if (oldSelectedItem.type !== newSelectedItem.type) {
+                // Connect this item to other if it's a different type
 
-                    var newLink = {
-                        source:newSelectedItem,
-                        target:oldSelectedItem
-                    };
+                var newLink = {
+                    source:newSelectedItem,
+                    target:oldSelectedItem
+                };
 
-                    if ((li = indexOfLink(newLink)) == -1) {
-                        // Add a new link
-                        linkSet.push(newLink);
-                        flashElement(d3Element);
-                    }
-                    else {
-                        // Remove the link
-                        linkSet.splice(li, 1);
-                        // d3.select("#" + linkId(newLink)).remove();
-                        // $("#" + linkId(newLink)).remove();
-                    }
+                var li = indexOfLink(newLink)
+                console.log("li", li);
 
-                    selectedItem = null;
-                    restart();                    
+                if (li == -1) {
+                    // Add a new link
+                    linkSet.push(newLink);
+                    flashElement(d3Element);
                 }
                 else {
-                    changeSelection = true;
+                    // Remove the link
+                    linkSet.splice(li, 1);
                 }
+
+                selectedItem = null;
+                restart();                    
             }
             else {
                 changeSelection = true;
             }
-
-            if (changeSelection) {
-                // Change selection 
-                selectedItem = newSelectedItem;
-                setElementSelected(d3Element, true);
-                setElementSelected(allElementsLinkedToElement(d3Element), true, false);                
-                setElementInvalid(otherSameElements(d3Element), true);
-
-                // editButton
-                //     .style("opacity", 1.0)
-                //     .style("left", (d.x - 30) + "px")
-                //     .style("top", (d.y -7) + "px");
-            }
         }
+        else {
+            changeSelection = true;
+        }
+
+        if (changeSelection) {
+            // Change selection 
+            selectedItem = newSelectedItem;
+            setElementSelected(d3Element, true);
+            setElementSelected(allElementsLinkedToElement(d3Element), true, false);                
+            setElementInvalid(otherSameElements(d3Element), true);
+        }
+    }
+
+    setTimeout(function() { clickCount--;}, 500);
 }
 
 function allElementsLinkedToElement(element) {
@@ -583,6 +597,10 @@ function addControlEventHandlers() {
     // })
     .on("dblclick", function() {
 
+        if (clickCount > 0) {
+            return;            
+        }
+
         var p1 = d3.svg.mouse(this);
 
         var newNode = {
@@ -597,7 +615,13 @@ function addControlEventHandlers() {
 
         nodeSet.push(newNode);
         restart();
-        setItemOpen(newNode, true);
+
+        // TODO: clean this up
+        selectedItem = newNode;
+        var d3Element = d3.select("#"+selectedItem.id);
+        setElementSelected(d3Element, true);
+        setElementInvalid(otherSameElements(d3Element), true);
+        setItemOpen(selectedItem, true);
 
     })
     .on("mousemove", function(e) {
@@ -606,6 +630,24 @@ function addControlEventHandlers() {
             .style("top", (d3.event.pageY + 28) + "px");
 
     });
+
+    $(".remove-button").click(function() {
+        setItemOpen(selectedItem, false);
+
+        var ni;
+        if ((ni = indexOfNode(selectedItem)) != -1) {
+            console.log(nodeSet.length, 'nodes');
+            var d = nodeSet.splice(ni, 1)[0];
+            console.log(nodeSet.length, 'nodes');
+            console.log("removed index", ni, d.id);
+            // d3.select(d.id);
+            restart();
+        }
+    })
+
+    $(".ok-button").click(function() {
+        setItemOpen(selectedItem, false);
+    })
 };
 
 function radius(target) {
