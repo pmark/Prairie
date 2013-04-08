@@ -9,6 +9,11 @@ var $chart = null,
     color = null,
     force = null,
     tooltip = null,
+    editBox = null,
+    deleteButton = null,
+    titleField = null,
+    descriptionField = null,
+    prioritySlider = null,
     selectedItem = null;
 
 
@@ -36,14 +41,38 @@ Meteor.startup(function ()
     addPeople();
     restart();
     addControlEventHandlers();
+
+    $('#priority-slider').slider({
+        orientation:"horizontal",
+        tooltip:"hide",
+        handle:"round",
+        min:0,
+        max:100,
+        value:70,                            
+    })
+    .on("slide", function(evt) {
+        $("#target-priority").text(evt.value);
+        // console.log("setting priority", evt.value, d3.select("#"+selectedItem.id));
+
+        var c = fill({priority:evt.value});
+        d3.select("#"+selectedItem.id)
+            .style("fill", c)
+            .style("stroke", function(d) { return d3.rgb(c).darker(0.7); })
+
+        selectedItem.priority = evt.value;
+
+    });
+
 });
 
 function useTheForce() {
     // Set up D3 force layout.
 
-    color = d3.scale.category20();
+    // color = d3.scale.category20();
+    color = d3.scale.linear()
+        .domain([0, 50, 100]).range(["gold", "orange", "red"]);
 
-    var gravityScale = d3.scale.linear().domain([320,1280]).range([0.5, 0.09]);
+    var gravityScale = d3.scale.linear().domain([320,1280]).range([0.5, 0.01]);
 
     force = d3.layout.force()
         .gravity(gravityScale(w))  // default 0.1
@@ -67,6 +96,25 @@ function useTheForce() {
     tooltip = d3.select("body").append("div")   
         .attr("class", "tooltip")               
         .style("opacity", 0);
+
+    // editBox = d3.select("body").append("div")
+    //     .attr("class", "edit-box")
+    //     .style("opacity", 0);
+
+    // titleField = editBox.append("input")
+    //     .attr("type", "text")
+    //     .attr("id", "title-field")
+    //     .style("opacity", 0);
+
+    // prioritySlider = editBox.append("div")
+    //     .attr("id", "priority-slider")
+    //     .style("opacity", 0);
+
+    // deleteButton = d3.select("body").append("div")   
+    //     .attr("class", "delete-button")
+    //     .style("opacity", 0);
+
+    // deleteButton.append("i").attr("class", "icon-remove");
 
     var targetLabel = svg.select(".target-label text");
 
@@ -110,8 +158,14 @@ function useTheForce() {
         var edgePadding = 6;
 
         nodeSet.forEach(function(d) {
-            d.x = Math.min(w-edgePadding, Math.max(edgePadding, d.x + (d.attractor.x - d.x) * k));
-            d.y = Math.min(h-edgePadding, Math.max(edgePadding, d.y + (d.attractor.y - d.y) * k));
+            if (d.open) {
+                d.x = w/2;
+                d.y = h/2;
+            }
+            else {
+                d.x = Math.min(w-edgePadding, Math.max(edgePadding, d.x + (d.attractor.x - d.x) * k));
+                d.y = Math.min(h-edgePadding, Math.max(edgePadding, d.y + (d.attractor.y - d.y) * k));                
+            }
         });
 
         link
@@ -264,16 +318,48 @@ function itemWasClicked(d) {
         // console.log(d);
         var newSelectedItem = d;
 
-        // Deselect all items
-        setElementSelected(node, false);
-        setElementInvalid(node, false);
-
         if (alreadySelected) {
-            // The selected item was deselected.
-            // Nothing is selected now.
-            selectedItem = null;
+
+            if (d.type === "target")
+            {
+                if (d.open) {
+                    // close
+                    setElementHidden(allOtherElements(d3Element), false, 250);
+                    d.open = false;
+                    d3Element
+                        .attr("data-open", "0")
+                        .transition().duration(500)
+                        .attr("r", radius(d));                
+
+                    $(".edit-box").hide();
+                }
+                else {
+                    // open
+                    setElementHidden(allOtherElements(d3Element), true, 250);
+                    d.open = true;
+                    d3Element
+                        .attr("data-open", "1")
+                        .transition().duration(500)
+                        .attr("r", Math.min(w, h)*0.45)
+                        .each("end", function() {
+                            $(".edit-box").fadeIn(250);
+                            $("#target-title").focus();
+                        });
+                }
+                restart();
+            }
+            else {
+                setElementSelected(node, false);
+                setElementInvalid(node, false);
+                selectedItem = null;
+            }
+
         }
         else {
+            // Deselect all items
+            setElementSelected(node, false);
+            setElementInvalid(node, false);
+
             var oldSelectedItem = selectedItem;
             var changeSelection = false;
 
@@ -316,6 +402,11 @@ function itemWasClicked(d) {
                 setElementSelected(d3Element, true);
                 setElementSelected(allElementsLinkedToElement(d3Element), true, false);                
                 setElementInvalid(otherSameElements(d3Element), true);
+
+                // editButton
+                //     .style("opacity", 1.0)
+                //     .style("left", (d.x - 30) + "px")
+                //     .style("top", (d.y -7) + "px");
             }
         }
 }
@@ -347,17 +438,6 @@ function allDifferentElementsNotLinkedToElement(element) {
         } 
     });
 
-    // linkSet.forEach(function(l) {
-    //     console.log("targ:", l.target);
-
-    //     if (l.target.id !== element.attr("id") && l.target.type !== element.type) {
-    //         a.push("#" + l.source.id);
-    //     } else if (l.source.id !== element.attr("id") && l.target.type !== element.type) {
-    //         a.push("#" + l.target.id);
-    //     }
-    // });
-
-    console.log("ad:", a);
     if (a.length > 0)
         return d3.selectAll(a.join(","));
     else
@@ -378,6 +458,36 @@ function otherSameElements(element) {
         return d3.selectAll(a.join(","));
     else
         return null;
+}
+
+function allOtherElements(element) {
+    var a = [];
+
+    nodeSet.forEach(function(n) {
+
+        if (n.id !== element.attr("id")) {
+            a.push("#" + n.id);
+        } 
+    });
+
+    if (a.length > 0)
+        return d3.selectAll(a.join(","));
+    else
+        return null;
+}
+
+function setElementHidden(element, hide, duration) {
+    if (!element || element.length == 0) {
+        return;
+    }
+
+    if (duration == null) {
+        duration = 250;
+    }
+
+    element
+        .transition().duration(duration)
+        .style("opacity", (hide ? "0" : "1"));
 }
 
 function setElementInvalid(element, invalid) {
@@ -428,7 +538,7 @@ function setElementSelected(element, selected, setData) {
         else {
             element
                 .transition().duration(250)
-                .style("stroke-width", "8")
+                .style("stroke-width", "6")
                 .attr("stroke-dasharray", "1,0");
         }
     }
@@ -456,7 +566,16 @@ function flashElement(element) {
 
 function addControlEventHandlers() {
 
-    svg.on("dblclick", function() {
+    svg
+    // .on("click", function() {
+
+    //     // TODO: figure out how to not interfere with normal node selection.
+    //     // Deselect all items
+    //     // setElementSelected(node, false);
+    //     // setElementInvalid(node, false);
+
+    // })
+    .on("dblclick", function() {
 
         var p1 = d3.svg.mouse(this);
 
@@ -482,7 +601,7 @@ function addControlEventHandlers() {
 };
 
 function radius(target) {
-    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([40,80]);
+    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([35,90]);
     var TARGET_RADIUS_MAX = screenWidthScale(w);
     var TARGET_RADIUS_MIN = TARGET_RADIUS_MAX / 2;
 
@@ -499,6 +618,10 @@ function radius(target) {
 }
 
 function fill(d) {
+    if (d.priority == null) {
+        return d3.rgb(250, 250, 250);
+    }
+
     return color(d.priority);
 }
 

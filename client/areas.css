@@ -1,5 +1,6 @@
 body {
     background-color:white;
+    font-family:Helvetica;
 }
 
 html, body, 
@@ -136,7 +137,9 @@ circle {
     stroke-dasharray: "20,5";
 }
 
-div.tooltip {   
+div.edit-button,
+div.delete-button,
+div.tooltip {
   position: absolute;           
   text-align: center;           
   vertical-align: middle;
@@ -150,3 +153,67 @@ div.tooltip {
   border-radius: 8px;           
   pointer-events: none;         
 }
+
+/*div.delete-button {
+    width:72px;
+}
+*/
+
+.edit-box {
+    height:50%;
+    top:25%;
+    width:100%;
+    margin:auto;
+    position:absolute;
+    text-align: center;
+}
+
+.edit-box #target-title,
+.edit-box textarea,
+.edit-box .button-box {
+    display:block;
+    margin:10px auto;
+}
+
+.edit-box #target-title,
+.edit-box textarea {
+    background:none;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+    font-family:Helvetica;
+    color:white;
+    border:none;
+}
+
+.edit-box #target-title {
+    text-align:center;    
+    height:30px;
+    font-size:18px;
+    font-weight:300px;
+}
+
+.edit-box textarea {
+    height:60px;
+    font-size:14px;
+    font-weight:300px;
+}
+
+.edit-box .button-box {
+    text-align: center;
+    margin:20px auto;
+}
+
+.button-box button {
+    margin:0px 10px;
+    padding:4px 8px;
+}
+
+.slider {
+    margin-top:10px;
+}
+
+.edit-box .priority {
+    font-size:18px;
+    color:white;
+    font-weight:100;
+}
+

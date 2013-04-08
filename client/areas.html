@@ -9,6 +9,21 @@
 </body>
 
 <template name="page">
+  <div class="edit-box" style="display:none;">
+    <input type="text" id="target-title"/>
+    <textarea id="target-description"></textarea>
+
+    <input type="text" id="priority-slider"/>
+    <div class="priority">
+      <small>priority:</small> <span id="target-priority">0</span>
+    </div>
+
+    <div class="button-box">
+      <button><i class="icon-ok"></i></button>
+      <button><i class="icon-remove"></i></button>
+    </div>
+  </div>
+
   {{#if showCreateDialog}}
     {{> createDialog}}
   {{/if}}
