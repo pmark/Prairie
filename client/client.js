@@ -445,9 +445,9 @@ function flashElement(element) {
     var oold = element.style("opacity");
 
     element
-        .attr("stroke-dasharray", "20,5")
-        .style("stroke-width", "50")
-        .style("opacity", "0.5")
+        .attr("stroke-dasharray", "8,4")
+        .style("stroke-width", "15")
+        .style("opacity", "0.1")
         .transition().duration(600).ease("cubic-out")
         .style("opacity", oold)
         .style("stroke-width", wold)
