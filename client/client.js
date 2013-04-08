@@ -310,6 +310,36 @@ function indexOfLink(link) {
     return index;
 }
 
+function setItemOpen(d, open) {
+    var d3Element = d3.select("#"+d.id);
+
+    if (d.open) {
+        // close
+        setElementHidden(allOtherElements(d3Element), false, 250);
+        d.open = false;
+        d3Element
+        .attr("data-open", "0")
+        .transition().duration(500)
+        .attr("r", radius(d));                
+
+        $(".edit-box").hide();
+    }
+    else {
+        // open
+        setElementHidden(allOtherElements(d3Element), true, 250);
+        d.open = true;
+        d3Element
+        .attr("data-open", "1")
+        .transition().duration(500)
+        .attr("r", Math.min(w, h)*0.45)
+        .each("end", function() {
+            $(".edit-box").fadeIn(250);
+            $("#target-title").focus();
+        });
+    }
+    restart();
+}
+
 function itemWasClicked(d) {
 
         var d3Element = d3.select(this);
@@ -322,31 +352,7 @@ function itemWasClicked(d) {
 
             if (d.type === "target")
             {
-                if (d.open) {
-                    // close
-                    setElementHidden(allOtherElements(d3Element), false, 250);
-                    d.open = false;
-                    d3Element
-                        .attr("data-open", "0")
-                        .transition().duration(500)
-                        .attr("r", radius(d));                
-
-                    $(".edit-box").hide();
-                }
-                else {
-                    // open
-                    setElementHidden(allOtherElements(d3Element), true, 250);
-                    d.open = true;
-                    d3Element
-                        .attr("data-open", "1")
-                        .transition().duration(500)
-                        .attr("r", Math.min(w, h)*0.45)
-                        .each("end", function() {
-                            $(".edit-box").fadeIn(250);
-                            $("#target-title").focus();
-                        });
-                }
-                restart();
+                setItemOpen(d, !d.open);
             }
             else {
                 setElementSelected(node, false);
@@ -591,6 +597,8 @@ function addControlEventHandlers() {
 
         nodeSet.push(newNode);
         restart();
+        setItemOpen(newNode, true);
+
     })
     .on("mousemove", function(e) {
         tooltip
