@@ -38,19 +38,17 @@ Meteor.startup(function ()
     addControlEventHandlers();
 });
 
-function useTheForce()
-{
+function useTheForce() {
     // Set up D3 force layout.
 
-    color = d3.scale.category10();
+    color = d3.scale.category20();
+
+    var gravityScale = d3.scale.linear().domain([320,1280]).range([0.5, 0.09]);
 
     force = d3.layout.force()
-        .gravity(0.1)  // default 0.1
-        .charge(-2000)  // default -30
-        .linkStrength(0.075) // default 1
-        // .gravity(.25)  // .25
-        // .charge(-2500)  // -2500
-        // .linkStrength(0.25)
+        .gravity(gravityScale(w))  // default 0.1
+        .charge(-2100)  // default -30
+        .linkStrength(0.08) // default 1
         .size([w, h]);
 
     var NODE_TYPE_CHART_CENTER = 0,
@@ -75,7 +73,7 @@ function useTheForce()
     var targetItems = [
         {name:greekLetter(0), priority:20},
         {name:greekLetter(1), priority:50},
-        {name:greekLetter(2), priority:80}
+        {name:greekLetter(2), priority:100}
     ];
 
     var targetCount = targetItems.length;
@@ -97,7 +95,6 @@ function useTheForce()
             // y: h / 3, 
             x: w/2 + Math.cos(angle) * distance, 
             y: h/2 + Math.sin(angle) * distance, 
-            fixed: false,
             id: "target-" + i,
             name: targetData.name,
             priority: targetData.priority,
@@ -110,10 +107,11 @@ function useTheForce()
     force.on("tick", function(e) {
 
         var k = e.alpha * .1;
+        var edgePadding = 6;
 
         nodeSet.forEach(function(d) {
-            d.x += (d.attractor.x - d.x) * k;
-            d.y += (d.attractor.y - d.y) * k;
+            d.x = Math.min(w-edgePadding, Math.max(edgePadding, d.x + (d.attractor.x - d.x) * k));
+            d.y = Math.min(h-edgePadding, Math.max(edgePadding, d.y + (d.attractor.y - d.y) * k));
         });
 
         link
@@ -140,12 +138,12 @@ function restart() {
         .insert("line", "circle")
         .attr("id", linkId)
         .attr("class", "link")
+        .attr("stroke-dasharray", "1, 6")
+        .attr("stroke-linecap", "round")
         .attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
         .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; })
-        .attr("stroke-linecap", "round")
-        .attr("stroke-linejoin", "round");
+        .attr("y2", function(d) { return d.target.y; });
 
     link
         .exit()
@@ -448,7 +446,7 @@ function flashElement(element) {
 
     element
         .attr("stroke-dasharray", "20,5")
-        .style("stroke-width", "150")
+        .style("stroke-width", "50")
         .style("opacity", "0.5")
         .transition().duration(600).ease("cubic-out")
         .style("opacity", oold)
@@ -462,20 +460,14 @@ function addControlEventHandlers() {
 
         var p1 = d3.svg.mouse(this);
 
-        var target = {
-            name:greekLetter(nodeSet.length), 
-            priority:50,
-            attractor:{x:w/2, y:h/2}
-        };
-
         var newNode = {
+            id: "target-" + nodeSet.length,
             type: "target",
-            priority: target.priority, 
+            priority:Math.random()*100,
+            name:greekLetter(nodeSet.length),
+            attractor:{x:w/2, y:h/2},
             x: p1[0], 
-            y: p1[1], 
-            // px: (p0 || (p0 = p1))[0], 
-            // py: p0[1],
-            attractor: target.attractor
+            y: p1[1]
         };
 
         nodeSet.push(newNode);
@@ -490,11 +482,19 @@ function addControlEventHandlers() {
 };
 
 function radius(target) {
+    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([40,80]);
+    var TARGET_RADIUS_MAX = screenWidthScale(w);
+    var TARGET_RADIUS_MIN = TARGET_RADIUS_MAX / 2;
+
     if (target.type === "person") {
-        return 20;
+        return TARGET_RADIUS_MIN * 0.6;
     }
     else {
-        return 20 + Math.sqrt(target.priority||50) * 5;
+        var radiusScale = d3.scale.linear()
+                            .domain([0,100])  // input
+                            .range([TARGET_RADIUS_MIN, TARGET_RADIUS_MAX]);  // output
+
+        return radiusScale(target.priority);
     }
 }
 

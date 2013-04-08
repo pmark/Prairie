@@ -107,13 +107,10 @@ svg {
 }
 
 circle {
-    /*stroke: skyblue;*/
     stroke-width: 2px;
-    opacity: 0.8;
 }
 
 [data-selected="1"] {
-    /*stroke-width:6px;*/
     opacity:1.0;
 }
 
@@ -134,8 +131,9 @@ circle {
 }
 
 .link {
-    stroke:yellow;
-    stroke-width:4px;
+    stroke:violet;
+    stroke-width:2px;
+    stroke-dasharray: "20,5";
 }
 
 div.tooltip {   
