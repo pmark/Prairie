@@ -1,5 +1,5 @@
 body {
-    background-color:white;
+    background-color:#F5F1DE;
     font-family:Helvetica;
 }
 
@@ -122,8 +122,8 @@ circle {
 }
 
 [data-invalid="1"] {
-    fill-opacity:0.15;
-    stroke-opacity:0.15;
+    fill-opacity:0.2;
+    stroke-opacity:0.5;
 }
 
 [data-invalid="0"] {
@@ -132,8 +132,8 @@ circle {
 }
 
 .link {
-    stroke:violet;
-    stroke-width:2px;
+    stroke:#999;
+    stroke-width:3px;
     stroke-dasharray: "20,5";
 }
 
@@ -159,6 +159,13 @@ div.tooltip {
 }
 */
 
+.edit-box .field {
+    background-color: rgba(0,0,0,.2);
+    box-shadow: 0 1px 0 rgba(255,255,255,.20), inset 0 1px 2px rgba(0,0,0,.15);
+    padding: 12px 15px;
+    color: #ececec;
+}
+
 .edit-box {
     height:50%;
     top:25%;
@@ -177,17 +184,17 @@ div.tooltip {
 
 .edit-box #target-title,
 .edit-box textarea {
-    background:none;
+/*    background:none;
     box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
     font-family:Helvetica;
     color:white;
+*/    
     border:none;
 }
 
 .edit-box #target-title {
     text-align:center;    
-    height:30px;
-    font-size:18px;
+    font-size: 18px;
     font-weight:300px;
 }
 

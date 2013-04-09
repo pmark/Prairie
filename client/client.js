@@ -234,6 +234,7 @@ function restart() {
         })
         .call(force.drag);
 
+
     node.exit().remove();
 
     // node
@@ -348,8 +349,13 @@ function setItemOpen(d, open) {
         .transition().duration(500)
         .attr("r", Math.min(w, h)*0.45)
         .each("end", function() {
+            $("#target-title").text(d.name);
+            $("#target-description").text(d.description);
+            $("#target-priority").text(d.priority);
+            $("#priority-slider").slider("setValue", d.priority);
+
             $(".edit-box").fadeIn(250);
-            $("#target-title").focus();
+            $("#target-description").focus();
         });
     }
     restart();
@@ -367,7 +373,7 @@ function itemWasClicked(d) {
 
     if (alreadySelected) {
 
-        if (d.type === "target")
+        if (d.type === "target" && clickCount > 1)
         {
             setItemOpen(d, !d.open);
         }
@@ -551,7 +557,7 @@ function setElementSelected(element, selected, setData) {
             element
                 .transition().duration(250)
                 .style("stroke-width", "4")
-                .attr("stroke-dasharray", "20,5");
+                .attr("stroke-dasharray", "15,4");
                 // .style("opacity", 0.5)
                 // .style("stroke", d3.rgb(255, 255, 255));
         }
@@ -634,6 +640,8 @@ function addControlEventHandlers() {
     $(".remove-button").click(function() {
         setItemOpen(selectedItem, false);
 
+        // TODO: Fix this. the node isn't removing properly.
+        // TODO: Remove links
         var ni;
         if ((ni = indexOfNode(selectedItem)) != -1) {
             console.log(nodeSet.length, 'nodes');
@@ -646,17 +654,20 @@ function addControlEventHandlers() {
     })
 
     $(".ok-button").click(function() {
+        selectedItem.priority = $("#priority-slider").val();
+        selectedItem.description = $("#target-description").val();
+        console.log(selectedItem.priority, selectedItem.description);
         setItemOpen(selectedItem, false);
     })
 };
 
 function radius(target) {
-    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([35,90]);
+    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([25,90]);
     var TARGET_RADIUS_MAX = screenWidthScale(w);
     var TARGET_RADIUS_MIN = TARGET_RADIUS_MAX / 2;
 
     if (target.type === "person") {
-        return TARGET_RADIUS_MIN * 0.6;
+        return Math.max(15, TARGET_RADIUS_MIN * 0.6);
     }
     else {
         var radiusScale = d3.scale.linear()
