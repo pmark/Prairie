@@ -56,7 +56,7 @@ Meteor.startup(function ()
         // console.log("setting priority", evt.value, d3.select("#"+selectedItem.id));
 
         var c = fill({priority:evt.value});
-        d3.select("#"+selectedItem.id)
+        d3.select("#"+selectedItem.id).select("circle")
             .style("fill", c)
             .style("stroke", function(d) { return d3.rgb(c).darker(0.7); })
 
@@ -175,22 +175,23 @@ function useTheForce() {
             .attr("x2", function(d) { return d.target.x; })
             .attr("y2", function(d) { return d.target.y; });
 
-        // node
-        //     .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
         node
-            .attr("cx", function(d) { return d.x; })
-            .attr("cy", function(d) { return d.y; });
+            .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+        // node
+        //     .attr("cx", function(d) { return d.x; })
+        //     .attr("cy", function(d) { return d.y; });
     });
 
     force.start();
 }
 
 function restart() {
+
     link = link.data(linkSet);
 
     link
         .enter()
-        .insert("line", "circle")
+        .insert("line", ".node")
         .attr("id", linkId)
         .attr("class", "link")
         .attr("stroke-dasharray", "1, 6")
@@ -206,34 +207,38 @@ function restart() {
 
     node = node.data(nodeSet);
 
-        // .append("g")
-        // .attr("class", "node")
-        // .call(force.drag);
-
-    node.enter()
-        .append("svg:circle")
-        .attr("r", radius)
-        .style("fill", fill)
-        .attr("class", function(d) { return d.type; })
+    var g = node.enter()
+        .append("svg:g")
+        .attr("class", function(d) { return "node " + d.type; })
         .attr("type", function (d) { return d.type; })
         .attr("id", function (d) { return d.id; }) // use meteor's d._id maybe
-        .style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.7); })
         .on("click", itemWasClicked)
-        .on("mouseover", function(d) {      
-            tooltip.text(d.name)
-                .transition()        
-                .duration(150)
-                .style("opacity", .9);
+        // .on("mouseover", function(d) {      
+        //     tooltip.text(d.name)
+        //         .transition()        
+        //         .duration(150)
+        //         .style("opacity", .9);
 
-            setTimeout(function() {
-                tooltip.style("opacity", 0);
-            }, 1000);
-        })
-        .on("mouseout", function(d) {       
-            tooltip.style("opacity", 0);   
-        })
+        //     setTimeout(function() {
+        //         tooltip.style("opacity", 0);
+        //     }, 1000);
+        // })
+        // .on("mouseout", function(d) {       
+        //     tooltip.style("opacity", 0);   
+        // })
         .call(force.drag);
 
+    g.append("svg:circle")
+        .attr("r", radius)
+        .style("fill", fill)
+        .style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.7); });
+
+    g.append("svg:text")
+        .text(function(d) { return d.name; })
+        .style("width", function(d) { return radius(d) * 1.8})
+        .style("text-anchor", "middle")
+        .attr("x", 0) // function(d) { return -radius(d) * 0.9})
+        .attr("y", 5);
 
     node.exit().remove();
 
@@ -332,10 +337,15 @@ function setItemOpen(d, open) {
         // close
         setElementHidden(allOtherElements(d3Element), false, 250);
         d.open = false;
+
         d3Element
-        .attr("data-open", "0")
-        .transition().duration(500)
-        .attr("r", radius(d));                
+            .attr("data-open", "0");
+
+        d3Element.select("text").transition().duration(500).style("opacity", "1.0");
+
+        d3Element.select("circle")
+            .transition().duration(500)
+            .attr("r", radius(d));                
 
         $(".edit-box").hide();
 
@@ -345,18 +355,22 @@ function setItemOpen(d, open) {
         setElementHidden(allOtherElements(d3Element), true, 250);
         d.open = true;
         d3Element
-        .attr("data-open", "1")
-        .transition().duration(500)
-        .attr("r", Math.min(w, h)*0.45)
-        .each("end", function() {
-            $("#target-title").text(d.name);
-            $("#target-description").text(d.description);
-            $("#target-priority").text(d.priority);
-            $("#priority-slider").slider("setValue", d.priority);
+            .attr("data-open", "1");
 
-            $(".edit-box").fadeIn(250);
-            $("#target-description").focus();
-        });
+        d3Element.select("text").transition().duration(500).style("opacity", "0.0");
+
+        d3Element.select("circle")
+            .transition().duration(500)
+            .attr("r", Math.min(w, h)*0.45)
+            .each("end", function() {
+                $("#target-title").text(d.name);
+                $("#target-description").text(d.description);
+                $("#target-priority").text(d.priority);
+                $("#priority-slider").slider("setValue", d.priority);
+
+                $(".edit-box").fadeIn(250);
+                $("#target-description").focus();
+            });
     }
     restart();
 }
@@ -549,6 +563,8 @@ function setElementSelected(element, selected, setData) {
         element.attr("data-selected", (selected ? "1" : "0"));
     }
 
+    element = element.select("circle");
+
     if (selected) {
         if (extendedSelection) {
             
@@ -577,6 +593,8 @@ function setElementSelected(element, selected, setData) {
 }
     
 function flashElement(element) {
+    element = element.select("circle");
+
     var wold = element.style("stroke-width");
     var oold = element.style("opacity");
 
