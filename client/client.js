@@ -185,6 +185,8 @@ function useTheForce() {
     force.start();
 }
 
+var splitNodes = {};
+
 function restart() {
 
     link = link.data(linkSet);
@@ -205,7 +207,22 @@ function restart() {
         .exit()
         .remove();
 
+
+    // splitNodes = {};
+
+    // nodeSet.map(function(d) {
+    //     splitNodes[d.type] ? null : splitNodes[d.type] = [];
+    //     splitNodes[d.type].push(d);
+    // });
+
+    // var targets = svg.selectAll(".target").data(splitNodes["target"]);
+    // // var people = svg.selectAll(".person").data(splitNodes["person"]);
+
+    // console.log("targets: ", splitNodes["target"]);
+    // console.log("nodes: ", nodeSet);
+
     node = node.data(nodeSet);
+
 
     var g = node.enter()
         .append("svg:g")
@@ -227,6 +244,18 @@ function restart() {
         //     tooltip.style("opacity", 0);   
         // })
         .call(force.drag);
+        // .each(function(d, b) {
+        //     if (d.type === "person") {
+        //         d3.select("#"+d.id)
+        //             .append("image")
+        //             .attr("xlink:href", "https://github.com/favicon.ico")
+        //             .attr("x", -8)
+        //             .attr("y", -8)
+        //             .attr("width", 16)
+        //             .attr("height", 16);
+        //     }
+        //     console.log("ended:", this);
+        // });
 
     g.append("svg:circle")
         .attr("r", radius)
