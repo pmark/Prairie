@@ -445,7 +445,7 @@ function itemWasClicked(d) {
                 };
 
                 var li = indexOfLink(newLink)
-                console.log("li", li);
+                // console.log("li", li);
 
                 if (li == -1) {
                     // Add a new link
@@ -691,10 +691,10 @@ function addControlEventHandlers() {
         // TODO: Remove links
         var ni;
         if ((ni = indexOfNode(selectedItem)) != -1) {
-            console.log(nodeSet.length, 'nodes');
+            // console.log(nodeSet.length, 'nodes');
             var d = nodeSet.splice(ni, 1)[0];
-            console.log(nodeSet.length, 'nodes');
-            console.log("removed index", ni, d.id);
+            // console.log(nodeSet.length, 'nodes');
+            // console.log("removed index", ni, d.id);
             // d3.select(d.id);
             restart();
         }
@@ -703,7 +703,7 @@ function addControlEventHandlers() {
     $(".ok-button").click(function() {
         selectedItem.priority = $("#priority-slider").val();
         selectedItem.description = $("#target-description").val();
-        console.log(selectedItem.priority, selectedItem.description);
+        // console.log(selectedItem.priority, selectedItem.description);
         setItemOpen(selectedItem, false);
     })
 };
@@ -782,7 +782,7 @@ Template.details.rendered = function () {
   $('#slider-details').slider()
     .on('slide', function(ev) 
     {
-      console.log("setting", Session.get("selected"), "priority", ev.value);
+      // console.log("setting", Session.get("selected"), "priority", ev.value);
 
       Meteor.call('changePriority', 
         Session.get("selected"),
@@ -842,11 +842,11 @@ Template.teamAreaZone.events({
     if (! Meteor.userId())
     {
       // must be logged in to create events
-      console.log("Not logged in");
+      // console.log("Not logged in");
       return;
     }
     var coords = coordsRelativeToElement(event.currentTarget, event);
-    console.log("Coords", coords);
+    // console.log("Coords", coords);
     openCreateDialog(coords.x / 500, coords.y / 500);
   }
 });
