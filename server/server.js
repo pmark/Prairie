@@ -37,11 +37,11 @@ Meteor.publish("directory", function ()
 	});
 });
 
-Meteor.publish("areas", function () 
+Meteor.publish("activities", function () 
 {
 	// Get all public areas, my areas, or areas I'm invited to.
-	// console.log("server: Meteor.publish(areas): ", this, this.team);
-	return Areas.find();
+	console.log("server: Meteor.publish(activities): ", this);
+	return Activities.find();
 
 	// TODO: Get areas for this team only.
 	// return Areas.find(

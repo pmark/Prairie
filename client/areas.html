@@ -6,6 +6,8 @@
   <meta property="og:image" content="http://prairie.meteor.com/images/fb_thumbnail.png" />
   <meta property="og:title" content="Prairie" />
   <meta property="og:description" content="By Seanote" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta names="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
 </head>
 
@@ -16,13 +18,12 @@
 
 <template name="page">
   <div class="edit-box" style="display:none;">
-    <!-- <input type="text" id="target-title" class="field"/> -->
-    <p id="target-title">X</p>
-    <textarea id="target-description" class="field"></textarea>
+    <input type="text" id="activity-title" class="field"/>
+    <textarea id="activity-description" class="field"></textarea>
 
     <input type="text" id="priority-slider"/>
     <div class="priority">
-      <small>priority:</small> <span id="target-priority">0</span>
+      <small>priority:</small> <span id="activity-priority">0</span>
     </div>
 
     <div class="button-box">

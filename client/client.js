@@ -20,27 +20,62 @@ var $chart = null,
 
 // All Tomorrow's Targets -- client
 
-Meteor.subscribe("directory");
-Meteor.subscribe("areas");
+Meteor.subscribe("directory", function() {
+    console.log("directory ready");
+    addPeople();
+    restart();
+});
 
-// If no area selected, select one.
+Meteor.subscribe("activities", function() {
+    console.log("activities ready");
+
+    var activityItems = Activities.find().fetch();
+
+    for (var i in activityItems) {
+        var activityData = activityItems[i];
+        var angle = (Math.PI * 2 / activityItems.length) * i;
+        var distance = radius({priority:100}) * 2;
+
+        activityData.x = w/2 + Math.cos(angle) * distance;
+        activityData.y = h/2 + Math.sin(angle) * distance;
+        activityData.attractor = {x:w/2, y:h/2};
+        activityData.id = "activity-" + activityData._id;
+
+        nodeSet.push(activityData);
+    }
+
+    restart();
+});
+
+// If no activity selected, select one.
 Meteor.startup(function () 
 {  
     Deps.autorun(function () 
     {
         if (! Session.get("selected")) 
         {
-            var area = Areas.findOne();    
+            var activity = Activities.findOne();    
         }
     });
+
+
 
     $chart = $("#chart");
     w = $chart.width();
     h = $chart.height();
 
+    document.body.addEventListener('touchmove', function(event) {
+        event.preventDefault();
+    }, false);
+
+    window.onresize = function() {
+        $(document.body).width(window.innerWidth).height(window.innerHeight);
+        w = $chart.width();
+        h = $chart.height();
+        restart();
+    }
+
     useTheForce();
-    addPeople();
-    restart();
     addControlEventHandlers();
 
     $('#priority-slider').slider({
@@ -52,7 +87,7 @@ Meteor.startup(function ()
         value:70,                            
     })
     .on("slide", function(evt) {
-        $("#target-priority").text(evt.value);
+        $("#activity-priority").text(evt.value);
         // console.log("setting priority", evt.value, d3.select("#"+selectedItem.id));
 
         var c = fill({priority:evt.value});
@@ -73,12 +108,12 @@ function useTheForce() {
     color = d3.scale.linear()
         .domain([0, 50, 100]).range(["gold", "orange", "red"]);
 
-    var gravityScale = d3.scale.linear().domain([320,1280]).range([0.5, 0.01]);
+    var gravityScale = d3.scale.linear().domain([320,1280]).range([0.4, 0.01]);
 
     force = d3.layout.force()
         .gravity(gravityScale(w))  // default 0.1
-        .charge(-2100)  // default -30
-        .linkStrength(0.08) // default 1
+        .charge(-2000)  // default -30
+        .linkStrength(0.07) // default 1
         .size([w, h]);
 
     var NODE_TYPE_CHART_CENTER = 0,
@@ -116,42 +151,6 @@ function useTheForce() {
     //     .style("opacity", 0);
 
     // deleteButton.append("i").attr("class", "icon-remove");
-
-    var targetLabel = svg.select(".target-label text");
-
-    var targetItems = [
-        {name:greekLetter(0), priority:20},
-        {name:greekLetter(1), priority:50},
-        {name:greekLetter(2), priority:100}
-    ];
-
-    var targetCount = targetItems.length;
-    var targetIndex = 0;
-    var padding = 10;
-    // var targetWidth = (w / (targetCount + (padding * 2)));
-
-    for (var i in targetItems) {
-
-        var targetData = targetItems[i];
-        var targetWidth = radius(targetData) + padding;
-
-        var angle = (Math.PI * 2 / targetCount) * i;
-        var distance = radius({priority:100}) * 2;  // use max radius
-
-        var nd = {
-            type: "target", 
-            // x: w/2 - (targetCount * targetWidth/2) + (targetWidth * targetIndex++), 
-            // y: h / 3, 
-            x: w/2 + Math.cos(angle) * distance, 
-            y: h/2 + Math.sin(angle) * distance, 
-            id: "target-" + i,
-            name: targetData.name,
-            priority: targetData.priority,
-            attractor: {x:w/2, y:h/2}
-        };
-
-        nodeSet.push(nd);
-    }
 
     force.on("tick", function(e) {
 
@@ -196,8 +195,8 @@ function restart() {
         .insert("line", ".node")
         .attr("id", linkId)
         .attr("class", "link")
-        .attr("stroke-dasharray", "1, 6")
-        .attr("stroke-linecap", "round")
+        .style("stroke-dasharray", "9 6 1 6")
+        .style("stroke-linecap", "round")
         .attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
         .attr("x2", function(d) { return d.target.x; })
@@ -231,7 +230,7 @@ function restart() {
         .attr("id", function (d) { return d.id; }) // use meteor's d._id maybe
         .on("click", itemWasClicked)
         // .on("mouseover", function(d) {      
-        //     tooltip.text(d.name)
+        //     tooltip.text(d.title)
         //         .transition()        
         //         .duration(150)
         //         .style("opacity", .9);
@@ -263,7 +262,7 @@ function restart() {
         .style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.7); });
 
     g.append("svg:text")
-        .text(function(d) { return d.name; })
+        .text(function(d) { return d.title; })
         .style("width", function(d) { return radius(d) * 1.8})
         .style("text-anchor", "middle")
         .attr("x", 0) // function(d) { return -radius(d) * 0.9})
@@ -283,7 +282,7 @@ function restart() {
     //     .append("text")
     //     .attr("dy", ".35em")
     //     .attr("text-anchor", "middle")
-    //     .text(function(d) { return d.name; });
+    //     .text(function(d) { return d.title; });
 
     force.start();
 }
@@ -307,7 +306,7 @@ function addPeople() {
         var newNode = {
             id: "person-" + i,
             type: "person",
-            name:"Joe",
+            title:"Joe",
             // x: w,
             // y: (i * personPadding) + personPadding/2, 
             attractor:{
@@ -360,6 +359,9 @@ function indexOfLink(link) {
 }
 
 function setItemOpen(d, open) {
+
+    console.log("setItemOpen:", open, d);
+
     var d3Element = d3.select("#"+d.id);
 
     if (d.open) {
@@ -367,8 +369,7 @@ function setItemOpen(d, open) {
         setElementHidden(allOtherElements(d3Element), false, 250);
         d.open = false;
 
-        d3Element
-            .attr("data-open", "0");
+        d3Element.attr("data-open", "0");
 
         d3Element.select("text").transition().duration(500).style("opacity", "1.0");
 
@@ -383,8 +384,8 @@ function setItemOpen(d, open) {
         // open
         setElementHidden(allOtherElements(d3Element), true, 250);
         d.open = true;
-        d3Element
-            .attr("data-open", "1");
+
+        d3Element.attr("data-open", "1");
 
         d3Element.select("text").transition().duration(500).style("opacity", "0.0");
 
@@ -392,13 +393,15 @@ function setItemOpen(d, open) {
             .transition().duration(500)
             .attr("r", Math.min(w, h)*0.45)
             .each("end", function() {
-                $("#target-title").text(d.name);
-                $("#target-description").text(d.description);
-                $("#target-priority").text(d.priority);
+                $("#activity-title").val(d.title);
+                $("#activity-description").val(d.description);
+                // console.log("set desc to", )
+
+                $("#activity-priority").text(d.priority);
                 $("#priority-slider").slider("setValue", d.priority);
 
                 $(".edit-box").fadeIn(250);
-                $("#target-description").focus();
+                $("#activity-description").focus();
             });
     }
     restart();
@@ -407,6 +410,7 @@ function setItemOpen(d, open) {
 function itemWasClicked(d) {
 
     clickCount++;
+    console.log("cc", clickCount);
 
     var d3Element = d3.select(this);
     var alreadySelected = (d3Element.attr("data-selected") === "1");
@@ -415,9 +419,7 @@ function itemWasClicked(d) {
     var newSelectedItem = d;
 
     if (alreadySelected) {
-
-        if (d.type === "target" && clickCount > 1)
-        {
+        if (d.type === "activity" && clickCount > 1) {
             setItemOpen(d, !d.open);
         }
         else {
@@ -435,6 +437,8 @@ function itemWasClicked(d) {
         var changeSelection = false;
 
         if (oldSelectedItem) {
+
+            console.log("old", oldSelectedItem);
 
             if (oldSelectedItem.type !== newSelectedItem.type) {
                 // Connect this item to other if it's a different type
@@ -516,12 +520,19 @@ function allDifferentElementsNotLinkedToElement(element) {
 function otherSameElements(element) {
     var a = [];
 
-    nodeSet.forEach(function(n) {
+    if (element && element.length) {
+        nodeSet.forEach(function(n) {
 
-        if (n.id !== element.attr("id") && n.type === element.attr("type")) {
-            a.push("#" + n.id);
-        } 
-    });
+            try {
+                if (n.id !== element.attr("id") && n.type === element.attr("type")) {
+                    a.push("#" + n.id);
+                }                 
+            }
+            catch (e) {
+                console.log("e", e);
+            }
+        });        
+    }
 
     if (a.length > 0)
         return d3.selectAll(a.join(","));
@@ -532,15 +543,26 @@ function otherSameElements(element) {
 function allOtherElements(element) {
     var a = [];
 
-    nodeSet.forEach(function(n) {
+    if (element && element.length) {        
+        nodeSet.forEach(function(n) {
 
-        if (n.id !== element.attr("id")) {
-            a.push("#" + n.id);
-        } 
-    });
+            // console.log("el", element, "n:", n.id);
+
+            try {
+                if (n.id !== element.attr("id")) {
+                    a.push("#" + n.id);
+                }                 
+            }
+            catch (e) {
+                console.log("Error selecting:", e);
+            }
+        });
+    }
 
     if (a.length > 0)
+    {
         return d3.selectAll(a.join(","));
+    }
     else
         return null;
 }
@@ -596,28 +618,33 @@ function setElementSelected(element, selected, setData) {
 
     if (selected) {
         if (extendedSelection) {
-            
             // This element is linked to the selected node.
-            
+            element
+                .style("stroke-dasharray", "1 0")
+                .transition().duration(250)
+                .style("stroke-width", "3")
+                .style("stroke-dasharray", "15 4");
+        }
+        else {
+            // Select the tapped element
             element
                 .transition().duration(250)
                 .style("stroke-width", "4")
-                .attr("stroke-dasharray", "15,4");
-                // .style("opacity", 0.5)
-                // .style("stroke", d3.rgb(255, 255, 255));
-        }
-        else {
-            element
-                .transition().duration(250)
-                .style("stroke-width", "6")
-                .attr("stroke-dasharray", "1,0");
+                .style("stroke-dasharray", "1 0")
+                .each("end", function() {
+                    element.style("stroke-dasharray", "none")
+                });
         }
     }
     else {
+        // Deselect
         element
             .transition().duration(250)
             .style("stroke-width", "2")
-            .attr("stroke-dasharray", "1,0");
+            .style("stroke-dasharray", "1 0")
+            .each("end", function() {
+                element.style("stroke-dasharray", "none")
+            });
     }
 }
     
@@ -628,13 +655,16 @@ function flashElement(element) {
     var oold = element.style("opacity");
 
     element
-        .attr("stroke-dasharray", "8,4")
-        .style("stroke-width", "15")
-        .style("opacity", "0.1")
+        .style("stroke-dasharray", "8 4 1 10")
+        .style("stroke-width", "10")
+        .style("opacity", "0.2")
         .transition().duration(600).ease("cubic-out")
         .style("opacity", oold)
         .style("stroke-width", wold)
-        .attr("stroke-dasharray", "1,0");
+        .style("stroke-dasharray", "1 0")
+        .each("end", function() {
+            element.style("stroke-dasharray", "none")
+        });
 }
 
 function addControlEventHandlers() {
@@ -657,10 +687,11 @@ function addControlEventHandlers() {
         var p1 = d3.svg.mouse(this);
 
         var newNode = {
-            id: "target-" + nodeSet.length,
-            type: "target",
-            priority:Math.random()*100,
-            name:greekLetter(nodeSet.length),
+            scratch:true,
+            id: "activity-" + nodeSet.length,
+            type: "activity",
+            priority:50,
+            title:greekLetter(nodeSet.length),
             attractor:{x:w/2, y:h/2},
             x: p1[0], 
             y: p1[1]
@@ -689,6 +720,7 @@ function addControlEventHandlers() {
 
         // TODO: Fix this. the node isn't removing properly.
         // TODO: Remove links
+
         var ni;
         if ((ni = indexOfNode(selectedItem)) != -1) {
             // console.log(nodeSet.length, 'nodes');
@@ -698,30 +730,68 @@ function addControlEventHandlers() {
             // d3.select(d.id);
             restart();
         }
-    })
+    });
 
     $(".ok-button").click(function() {
+        selectedItem.title = $("#activity-title").val();
         selectedItem.priority = $("#priority-slider").val();
-        selectedItem.description = $("#target-description").val();
-        // console.log(selectedItem.priority, selectedItem.description);
-        setItemOpen(selectedItem, false);
+        selectedItem.description = $("#activity-description").val();
+
+        if (selectedItem.scratch) {
+            // New 
+            Meteor.call('createActivity', {
+                title: selectedItem.title,
+                description: selectedItem.description,
+                priority: selectedItem.priority,
+                team: 1
+            }, function (error, activityId) {
+                if (error) {
+                    alert("Error: " + error.reason + " " + error.details);
+                }
+                else {
+                    // Session.set("selected", activity);
+
+                    // Change element's ID
+                    var newId = "activity-" + activityId;
+                    $("#" + selectedItem.id).attr("id", newId);
+
+                    // Change element's text element's text
+                    d3.select("#" + newId + " text").text(selectedItem.title);
+
+                    selectedItem.id = newId;
+                    delete(selectedItem.scratch);
+                    console.log(Activities.find().count(), "Created", activityId);
+                    setItemOpen(selectedItem, false);
+                    selectedItem = null;
+                }
+            });
+        }
+        else {
+            // Updating an exiting activity
+
+            console.log("TODO: update")
+            setItemOpen(selectedItem, false);
+            selectedItem = null;
+            clickCount = 0;
+        }
+
     })
 };
 
-function radius(target) {
-    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([25,90]);
+function radius(d) {
+    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([44,100]);
     var TARGET_RADIUS_MAX = screenWidthScale(w);
     var TARGET_RADIUS_MIN = TARGET_RADIUS_MAX / 2;
 
-    if (target.type === "person") {
-        return Math.max(15, TARGET_RADIUS_MIN * 0.6);
+    if (d.type === "person") {
+        return Math.max(20, TARGET_RADIUS_MIN * 0.8);
     }
     else {
         var radiusScale = d3.scale.linear()
                             .domain([0,100])  // input
                             .range([TARGET_RADIUS_MIN, TARGET_RADIUS_MAX]);  // output
 
-        return radiusScale(target.priority);
+        return radiusScale(d.priority);
     }
 }
 
@@ -736,14 +806,14 @@ function fill(d) {
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// Area details sidebar
+// Activity details sidebar
 
-Template.details.area = function () {
-  return Areas.findOne(Session.get("selected"));
+Template.details.activity = function () {
+  return Activities.findOne(Session.get("selected"));
 };
 
-Template.details.anyAreas = function () {
-  return Areas.find().count() > 0;
+Template.details.anyActivities = function () {
+  return Activities.find().count() > 0;
 };
 
 Template.details.creatorName = function () {
@@ -775,7 +845,7 @@ Template.details.priorityPct = function () {
 };
 
 Template.details.rendered = function () {
-    var area = Session.get("selected");
+    var activity = Session.get("selected");
 
   $('#slider-create').slider();
 
@@ -793,7 +863,7 @@ Template.details.rendered = function () {
 
 Template.details.events({
   'click .remove': function () {
-    Areas.remove(this._id);
+    Activities.remove(this._id);
     return false;
   },
 
@@ -808,7 +878,7 @@ Template.details.events({
 });
 
 ///////////////////////////////////////////////////////////////////////////////
-// Area attendance widget
+// Activity attendance widget
 
 Template.attendance.focuserName = function () {
   var user = Meteor.users.findOne(this.user);
@@ -820,13 +890,13 @@ Template.attendance.nobody = function () {
 };
 
 Template.details.anyFocusers = function () {
-  return Areas.find().count() > 0;
+  return Activities.find().count() > 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////////
-// focus area zone display
+// focus activity zone display
 
-// Use jquery to get the position clicked relative to the focus area zone element.
+// Use jquery to get the position clicked relative to the focus activity zone element.
 var coordsRelativeToElement = function (element, event) {
   var offset = $(element).offset();
   var x = event.pageX - offset.left;
@@ -838,7 +908,7 @@ Template.teamAreaZone.events({
   'mousedown circle, mousedown text': function (event, template) {
     Session.set("selected", event.currentTarget.id);
   },
-  'dblclick .team-area-zone': function (event, template) {
+  'dblclick .team-activity-zone': function (event, template) {
     if (! Meteor.userId())
     {
       // must be logged in to create events
@@ -861,11 +931,11 @@ Template.teamAreaZone.rendered = function ()
     self.handle = Deps.autorun(function () 
     {
       var selected = Session.get('selected');
-      var selectedArea = selected && Areas.findOne(selected);
+      var selectedArea = selected && Activities.findOne(selected);
 
-      var radius = function (area) 
+      var radius = function (activity) 
       {
-        return 30 + Math.sqrt(area.priority) * 50;
+        return 30 + Math.sqrt(activity.priority) * 50;
       };
 
       /*
@@ -884,12 +954,12 @@ Template.teamAreaZone.rendered = function ()
       var imgSize = 44;
 
 
-      // Draw a circle for each area
+      // Draw a circle for each activity
       var updateCircles = function (group)
       {
-        group.attr("id", function (area) {
-          // console.log("update circles: ", area._id);
-          return area._id; 
+        group.attr("id", function (activity) {
+          // console.log("update circles: ", activity._id);
+          return activity._id; 
         })
 
         .attr("transform", function(d) 
@@ -897,16 +967,16 @@ Template.teamAreaZone.rendered = function ()
           return "translate(" + d.x + "," + d.y + ")"; 
         })
 
-        // .attr("cx", function (area) { return area.x * 500; })
-        // .attr("cy", function (area) { return area.y * 500; })
+        // .attr("cx", function (activity) { return activity.x * 500; })
+        // .attr("cy", function (activity) { return activity.y * 500; })
         .attr("r", radius)
         .attr("class", "public")
         .style('opacity', 0.5);
       };
 
       var circles = d3.select(self.node).select(".circles").selectAll("circle")
-        .data(Areas.find().fetch(), function (area) { 
-          return area._id; 
+        .data(Activities.find().fetch(), function (activity) { 
+          return activity._id; 
         });
 
       updateCircles(circles.enter().append("circle")        
@@ -930,17 +1000,17 @@ Template.teamAreaZone.rendered = function ()
       // Label each with the current attendance count
       var updateLabels = function (group) 
       {
-        group.attr("id", function (area) { return area._id; })
-        .text(function (area) { return area.name || ''; })
-        .attr("x", function (area) { return area.x * 500 - radius(area)/3; })
-        .attr("y", function (area) { return area.y * 500 + radius(area)/3.5 })
-        .style('font-size', function (area) {
-          return radius(area) * 1.25 + "px";
+        group.attr("id", function (activity) { return activity._id; })
+        .text(function (activity) { return activity.title || ''; })
+        .attr("x", function (activity) { return activity.x * 500 - radius(activity)/3; })
+        .attr("y", function (activity) { return activity.y * 500 + radius(activity)/3.5 })
+        .style('font-size', function (activity) {
+          return radius(activity) * 1.25 + "px";
         });
       };
 
       var labels = d3.select(self.node).select(".labels").selectAll("text")
-        .data(Areas.find().fetch(), function (area) { return area._id; });
+        .data(Activities.find().fetch(), function (activity) { return activity._id; });
 
       updateLabels(labels.enter().append("text"));
       updateLabels(labels.transition().duration(250).ease("cubic-out"));
@@ -957,7 +1027,7 @@ Template.teamAreaZone.destroyed = function ()
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// Create Area dialog
+// Create Activity dialog
 
 var openCreateDialog = function (x, y) {
   Session.set("createCoords", {x: x, y: y});
@@ -971,8 +1041,8 @@ Template.page.showCreateDialog = function () {
 
 var GREEK_LETTERS = ["α","β","γ","δ","ε","ζ","η","θ","ι","κ","λ","μ","ν","ξ","ο","π","ρ","ς","σ","τ","υ","φ","χ","ψ","ω"];
 
-Template.teamAreaZone.areaCount = function () {
-  return Areas.find().count();
+Template.teamAreaZone.activityCount = function () {
+  return Activities.find().count();
 };
 
 function greekLetter(number)
@@ -987,24 +1057,24 @@ Template.createDialog.events(
   {
     var link = template.find(".link").value;
     var description = template.find(".description").value;
-    var name = greekLetter(Template.teamAreaZone.areaCount());
+    var title = greekLetter(Template.teamAreaZone.activityCount());
     // var priority = parseFloat($('#slider-create').attr("value") / 100);
 
-    if (name.length && description.length)
+    if (title.length && description.length)
     {
       Meteor.call('createArea', 
       {
-        name: name,
+        title: title,
         description: description,
         link: link,
         team: 1,
         priority: 0.5
       }, 
-      function (error, area)
+      function (error, activity)
       {
         if (! error) {
-          console.log("inserted area:", area);
-          Session.set("selected", area);
+          console.log("inserted activity:", activity);
+          Session.set("selected", activity);
         }
         else
         {

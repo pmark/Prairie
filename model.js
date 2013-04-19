@@ -1,30 +1,30 @@
-// All Tomorrow's Areas -- data model
+// Prairie -- data model
 // Loaded on both the client and the server
 
 ///////////////////////////////////////////////////////////////////////////////
-// Areas
+// Activities
 
 /*
-  Each area is represented by a document in the Areas collection:
+  Each activity is represented by a document in the Activities collection:
     owner: user id
     priority: Number (interval [0, 1])
-    name: String, auto-assigned Greek letter
+    title: String, auto-assigned Greek letter
     team: Number teamId
     description: String
     link: String
     focusers: Array of objects like {user:userId, focus:[0-1]}
 */
-Areas = new Meteor.Collection("areas");
+Activities = new Meteor.Collection("activities");
 
-Areas.allow({
-  insert: function (userId, area) {
-    console.log("----------Areas.allow: insert");
-    return false; // no cowboy inserts -- use createArea method
+Activities.allow({
+  insert: function (userId, activity) {
+    console.log("----------Activities.allow: insert", activity);
+    return false; // no cowboy inserts -- use createActivity method
   },
   
-  update: function (userId, area, fields, modifier) {
+  update: function (userId, activity, fields, modifier) {
 
-    // var allowed = ["name", "description", "link", "priority"];
+    // var allowed = ["title", "description", "link", "priority"];
     // if (_.difference(fields, allowed).length)
     //   return false; // tried to write to forbidden field
 
@@ -34,74 +34,82 @@ Areas.allow({
     return true;
   },
   
-  remove: function (userId, area) {
-    // You can only remove areas that you created and nobody is going to.
-    return true;
+  remove: function (userId, activity) {
+    // You can only remove activities that you created and nobody is going to.
+    return false;
   }
 });
 
-var attending = function (area) {
-  return (area.focusers || []).length;
-  // return (_.groupBy(area.focusers, 'rsvp').yes || []).length;
+var attending = function (activity) {
+  return (activity.focusers || []).length;
+  // return (_.groupBy(activity.focusers, 'rsvp').yes || []).length;
 };
 
 Meteor.methods({
-  // options should include: description, name, team
+  // options should include: description, title, team
 
-  createArea: function (options) 
+  createActivity: function (options) 
   {
     options = options || {};
-    if (! (typeof options.name === "string" && options.name.length &&
-           typeof options.description === "string" &&
-           options.description.length &&
-           typeof options.team === "number" && options.team >= 0))
+    if (! (typeof options.title === "string" && options.title.length &&
+           typeof options.description === "string" && options.description.length))
+           // typeof options.team === "number" && options.team >= 0))
       throw new Meteor.Error(400, "Required parameter missing");
-    if (options.description.length > 100)
-      throw new Meteor.Error(413, "Description is too long");
-    if (! this.userId)
-      throw new Meteor.Error(403, "You must be logged in");
 
-    var areaData = {
+    if (options.description.length > 1000)
+      throw new Meteor.Error(413, "Description is too long");
+
+    // if (! this.userId)
+    //   throw new Meteor.Error(403, "You must be logged in");
+
+    var activityData = {
       x: Math.random(),
       y: Math.random(),
+      type: "activity",
       owner: this.userId,
-      team: options.team,
-      priority: options.priority,
+      team: options.team || 1,
+      priority: options.priority || 50,
       link: options.link,
-      name: options.name,
+      title: options.title || '?',
       description: options.description,
       focusers: []
     };
 
-    var b = Areas.insert(areaData);
+    var b = Activities.insert(activityData);
+    console.log("insert: ", b);
     return b;
   },
 
-  changePriority: function (areaId, newPriority)
+  removeAll: function() {
+    // Activities.find().forEach(function(i) { Activities.remove(i._id); });
+    Activities.remove({team:1});
+  },
+
+  changePriority: function (activityId, newPriority)
   {  
     newPriority = Math.max(0.0, Math.min(1.0, newPriority));
 
-    Areas.update(
+    Activities.update(
       {
-        _id: areaId
+        _id: activityId
       },
       {
         $set: {"priority": newPriority}
       });
   },
 
-  joinArea: function (areaId)
+  joinActivity: function (activityId)
   {
-    var area = Areas.findOne(areaId);
+    var activity = Activities.findOne(activityId);
 
-    if (! area )
-      throw new Meteor.Error(404, "No such area");
+    if (! activity )
+      throw new Meteor.Error(404, "No such activity");
 
     if (! this.userId )
       throw new Meteor.Error(404, "Please log in");
 
-    console.log("Adding focuser", this.userId, "to area ", areaId);
-    Areas.update(areaId, { $addToSet: { focusers: this.userId } });
+    console.log("Adding focuser", this.userId, "to activity ", activityId);
+    Activities.update(activityId, { $addToSet: { focusers: this.userId } });
   }
 
 });
