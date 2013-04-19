@@ -620,7 +620,7 @@ function setElementSelected(element, selected, setData) {
         if (extendedSelection) {
             // This element is linked to the selected node.
             element
-                .style("stroke-dasharray", "1 0")
+                .style("stroke-dasharray", "1 1")
                 .transition().duration(250)
                 .style("stroke-width", "3")
                 .style("stroke-dasharray", "15 4");
@@ -630,10 +630,7 @@ function setElementSelected(element, selected, setData) {
             element
                 .transition().duration(250)
                 .style("stroke-width", "4")
-                .style("stroke-dasharray", "1 0")
-                .each("end", function() {
-                    element.style("stroke-dasharray", "none")
-                });
+                .style("stroke-dasharray", "none");
         }
     }
     else {
@@ -641,10 +638,10 @@ function setElementSelected(element, selected, setData) {
         element
             .transition().duration(250)
             .style("stroke-width", "2")
-            .style("stroke-dasharray", "1 0")
-            .each("end", function() {
-                element.style("stroke-dasharray", "none")
-            });
+            .style("stroke-dasharray", "none");
+            // .each("end", function() {
+            //     element.style("stroke-dasharray", "none")
+            // });
     }
 }
     

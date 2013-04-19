@@ -137,7 +137,7 @@ circle {
 }
 
 [data-invalid="1"] {
-    opacity:0.33;
+    opacity:0.25;
 }
 
 [data-invalid="0"] {
