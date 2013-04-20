@@ -23,6 +23,7 @@ Activities.allow({
   },
   
   update: function (userId, activity, fields, modifier) {
+    console.log("----------Activities.allow: update", activity);
 
     // var allowed = ["title", "description", "link", "priority"];
     // if (_.difference(fields, allowed).length)
@@ -31,7 +32,7 @@ Activities.allow({
     // A good improvement would be to validate the type of the new
     // value of the field (and if a string, the length.) In the
     // future Meteor will have a schema system to makes that easier.
-    return true;
+    return false;
   },
   
   remove: function (userId, activity) {
@@ -48,7 +49,7 @@ var attending = function (activity) {
 Meteor.methods({
   // options should include: description, title, team
 
-  createActivity: function (options) 
+  saveActivity: function (options) 
   {
     options = options || {};
     if (! (typeof options.title === "string" && options.title.length &&
@@ -63,26 +64,29 @@ Meteor.methods({
     //   throw new Meteor.Error(403, "You must be logged in");
 
     var activityData = {
-      x: Math.random(),
-      y: Math.random(),
       type: "activity",
       owner: this.userId,
       team: options.team || 1,
       priority: options.priority || 50,
       link: options.link,
       title: options.title || '?',
-      description: options.description,
-      focusers: []
+      description: options.description
     };
 
-    var b = Activities.insert(activityData);
-    console.log("insert: ", b);
-    return b;
+    if (options.scratch) {
+      Activities.insert(activityData);
+    }
+    else {
+      Activities.update(options.id, {$set: activityData});
+    }
   },
 
   removeAll: function() {
-    // Activities.find().forEach(function(i) { Activities.remove(i._id); });
-    Activities.remove({team:1});
+    Activities.find().forEach(function(i) { 
+      console.log("remove", i);
+      Activities.remove(i._id); 
+    });
+    // Activities.remove({});
   },
 
   changePriority: function (activityId, newPriority)

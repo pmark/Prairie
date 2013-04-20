@@ -1,24 +1,41 @@
 var $chart = null,
-    w = null,
-    h = null,
-    svg = null,
-    nodeSet = null,
-    linkSet = null,
-    node = null,
-    link = null,
-    color = null,
-    force = null,
-    tooltip = null,
-    editBox = null,
-    deleteButton = null,
-    titleField = null,
-    descriptionField = null,
-    prioritySlider = null,
-    selectedItem = null,
-    clickCount = 0;
+w = null,
+h = null,
+svg = null,
+nodeSet = null,
+linkSet = null,
+node = null,
+link = null,
+color = null,
+force = null,
+tooltip = null,
+editBox = null,
+deleteButton = null,
+titleField = null,
+descriptionField = null,
+prioritySlider = null,
+selectedItem = null,
+clickCount = 0,
+modalOpen = false,
+mobile = null,
+activitiesSubscription = null;
 
+function addActivity(activityData) {
+    var angle = (Math.PI * 2 / nodeSet.length) * nodeSet.length;
+    var distance = radius({priority:100}) * 2;
 
-// All Tomorrow's Targets -- client
+    activityData.type = "activity";
+    activityData.x = w/2 + Math.cos(angle) * distance;
+    activityData.y = h/2 + Math.sin(angle) * distance;
+    activityData.attractor = {x:w/2, y:h/2};
+    activityData.id = "activity-" + activityData._id;
+
+    console.log("Added", activityData);
+
+    nodeSet.push(activityData);
+}
+
+// Prairie -- client
 
 Meteor.subscribe("directory", function() {
     console.log("directory ready");
@@ -26,25 +43,48 @@ Meteor.subscribe("directory", function() {
     restart();
 });
 
-Meteor.subscribe("activities", function() {
+activitiesSubscription = Meteor.subscribe("activities", function() {
     console.log("activities ready");
 
-    var activityItems = Activities.find().fetch();
+    var cursor = Activities.find({});
 
-    for (var i in activityItems) {
-        var activityData = activityItems[i];
-        var angle = (Math.PI * 2 / activityItems.length) * i;
-        var distance = radius({priority:100}) * 2;
+    var handle = cursor.observeChanges({
+        added: function(id, fields) {
+            console.log("added", id);
+            fields._id = id;
+            addActivity(fields);
+            restart();
+        },
+        changed: function(id, fields) {
+            console.log("changed", id);
+            fields._id = id;
+            fields.type = "activity";
+            fields.attractor = {x:w/2, y:h/2};
+            fields.id = "activity-" + id;
 
-        activityData.x = w/2 + Math.cos(angle) * distance;
-        activityData.y = h/2 + Math.sin(angle) * distance;
-        activityData.attractor = {x:w/2, y:h/2};
-        activityData.id = "activity-" + activityData._id;
+            for (var i in nodeSet) {
 
-        nodeSet.push(activityData);
-    }
+                var d = nodeSet[i];
 
-    restart();
+                if (d._id === id) {
+                    nodeSet[i] = fields;
+                    restart();
+                }
+            }
+
+        },
+        removed: function(id) {
+            console.log("removed", id);
+        }
+    });
+
+    // var activityItems = cursor.fetch();
+
+    // for (var i in activityItems) {
+    //     addActivity(activityItems[i]);
+    // }
+
+    // restart();
 });
 
 // If no activity selected, select one.
@@ -58,6 +98,13 @@ Meteor.startup(function ()
         }
     });
 
+    window.mobileCheck = function() {
+        var check = false;
+        (function(a){if(/(android|bb\d+|meego).+mobile|avantgo|bada\/|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows (ce|phone)|xda|xiino/i.test(a)||/1207|6310|6590|3gso|4thp|50[1-6]i|770s|802s|a wa|abac|ac(er|oo|s\-)|ai(ko|rn)|al(av|ca|co)|amoi|an(ex|ny|yw)|aptu|ar(ch|go)|as(te|us)|attw|au(di|\-m|r |s )|avan|be(ck|ll|nq)|bi(lb|rd)|bl(ac|az)|br(e|v)w|bumb|bw\-(n|u)|c55\/|capi|ccwa|cdm\-|cell|chtm|cldc|cmd\-|co(mp|nd)|craw|da(it|ll|ng)|dbte|dc\-s|devi|dica|dmob|do(c|p)o|ds(12|\-d)|el(49|ai)|em(l2|ul)|er(ic|k0)|esl8|ez([4-7]0|os|wa|ze)|fetc|fly(\-|_)|g1 u|g560|gene|gf\-5|g\-mo|go(\.w|od)|gr(ad|un)|haie|hcit|hd\-(m|p|t)|hei\-|hi(pt|ta)|hp( i|ip)|hs\-c|ht(c(\-| |_|a|g|p|s|t)|tp)|hu(aw|tc)|i\-(20|go|ma)|i230|iac( |\-|\/)|ibro|idea|ig01|ikom|im1k|inno|ipaq|iris|ja(t|v)a|jbro|jemu|jigs|kddi|keji|kgt( |\/)|klon|kpt |kwc\-|kyo(c|k)|le(no|xi)|lg( g|\/(k|l|u)|50|54|\-[a-w])|libw|lynx|m1\-w|m3ga|m50\/|ma(te|ui|xo)|mc(01|21|ca)|m\-cr|me(rc|ri)|mi(o8|oa|ts)|mmef|mo(01|02|bi|de|do|t(\-| |o|v)|zz)|mt(50|p1|v )|mwbp|mywa|n10[0-2]|n20[2-3]|n30(0|2)|n50(0|2|5)|n7(0(0|1)|10)|ne((c|m)\-|on|tf|wf|wg|wt)|nok(6|i)|nzph|o2im|op(ti|wv)|oran|owg1|p800|pan(a|d|t)|pdxg|pg(13|\-([1-8]|c))|phil|pire|pl(ay|uc)|pn\-2|po(ck|rt|se)|prox|psio|pt\-g|qa\-a|qc(07|12|21|32|60|\-[2-7]|i\-)|qtek|r380|r600|raks|rim9|ro(ve|zo)|s55\/|sa(ge|ma|mm|ms|ny|va)|sc(01|h\-|oo|p\-)|sdk\/|se(c(\-|0|1)|47|mc|nd|ri)|sgh\-|shar|sie(\-|m)|sk\-0|sl(45|id)|sm(al|ar|b3|it|t5)|so(ft|ny)|sp(01|h\-|v\-|v )|sy(01|mb)|t2(18|50)|t6(00|10|18)|ta(gt|lk)|tcl\-|tdg\-|tel(i|m)|tim\-|t\-mo|to(pl|sh)|ts(70|m\-|m3|m5)|tx\-9|up(\.b|g1|si)|utst|v400|v750|veri|vi(rg|te)|vk(40|5[0-3]|\-v)|vm40|voda|vulc|vx(52|53|60|61|70|80|81|83|85|98)|w3c(\-| )|webc|whit|wi(g |nc|nw)|wmlb|wonu|x700|yas\-|your|zeto|zte\-/i.test(a.substr(0,4)))check = true})(navigator.userAgent||navigator.vendor||window.opera);
+        return check;
+    }
+
+    mobile = window.mobileCheck();
 
 
     $chart = $("#chart");
@@ -92,8 +139,8 @@ Meteor.startup(function ()
 
         var c = fill({priority:evt.value});
         d3.select("#"+selectedItem.id).select("circle")
-            .style("fill", c)
-            .style("stroke", function(d) { return d3.rgb(c).darker(0.7); })
+        .style("fill", c)
+        .style("stroke", function(d) { return d3.rgb(c).darker(0.7); })
 
         selectedItem.priority = evt.value;
 
@@ -106,30 +153,30 @@ function useTheForce() {
 
     // color = d3.scale.category20();
     color = d3.scale.linear()
-        .domain([0, 50, 100]).range(["gold", "orange", "red"]);
+    .domain([0, 50, 100]).range(["gold", "orange", "red"]);
 
-    var gravityScale = d3.scale.linear().domain([320,1280]).range([0.4, 0.01]);
+    var gravityScale = d3.scale.linear().domain([320,1280]).range([0.38, 0.01]);
 
     force = d3.layout.force()
         .gravity(gravityScale(w))  // default 0.1
-        .charge(-2000)  // default -30
-        .linkStrength(0.07) // default 1
+        .charge(-2100)  // default -30
+        .linkStrength(0.06) // default 1
         .size([w, h]);
 
-    var NODE_TYPE_CHART_CENTER = 0,
+        var NODE_TYPE_CHART_CENTER = 0,
         NODE_TYPE_TARGET_CENTER = 1;
 
-    svg = d3.select("#chart").append("svg:svg")
+        svg = d3.select("#chart").append("svg:svg")
         .attr("width", w)
         .attr("height", h);
 
-    nodeSet = force.nodes();
-    linkSet = force.links();
+        nodeSet = force.nodes();
+        linkSet = force.links();
 
-    node = svg.selectAll(".node"),
-    link = svg.selectAll(".link");
+        node = svg.selectAll(".node"),
+        link = svg.selectAll(".link");
 
-    tooltip = d3.select("body").append("div")   
+        tooltip = d3.select("body").append("div")   
         .attr("class", "tooltip")               
         .style("opacity", 0);
 
@@ -169,13 +216,13 @@ function useTheForce() {
         });
 
         link
-            .attr("x1", function(d) { return d.source.x; })
-            .attr("y1", function(d) { return d.source.y; })
-            .attr("x2", function(d) { return d.target.x; })
-            .attr("y2", function(d) { return d.target.y; });
+        .attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
 
         node
-            .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
+        .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"; });
         // node
         //     .attr("cx", function(d) { return d.x; })
         //     .attr("cy", function(d) { return d.y; });
@@ -191,20 +238,20 @@ function restart() {
     link = link.data(linkSet);
 
     link
-        .enter()
-        .insert("line", ".node")
-        .attr("id", linkId)
-        .attr("class", "link")
-        .style("stroke-dasharray", "9 6 1 6")
-        .style("stroke-linecap", "round")
-        .attr("x1", function(d) { return d.source.x; })
-        .attr("y1", function(d) { return d.source.y; })
-        .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; });
+    .enter()
+    .insert("line", ".node")
+    .attr("id", linkId)
+    .attr("class", "link")
+    .style("stroke-dasharray", "9 3 1 3")
+    .style("stroke-linecap", "round")
+    .attr("x1", function(d) { return d.source.x; })
+    .attr("y1", function(d) { return d.source.y; })
+    .attr("x2", function(d) { return d.target.x; })
+    .attr("y2", function(d) { return d.target.y; });
 
     link
-        .exit()
-        .remove();
+    .exit()
+    .remove();
 
 
     // splitNodes = {};
@@ -224,11 +271,42 @@ function restart() {
 
 
     var g = node.enter()
-        .append("svg:g")
-        .attr("class", function(d) { return "node " + d.type; })
-        .attr("type", function (d) { return d.type; })
+    .append("svg:g")
+    .attr("class", function(d) { return "node " + d.type; })
+    .attr("type", function (d) { return d.type; })
         .attr("id", function (d) { return d.id; }) // use meteor's d._id maybe
-        .on("click", itemWasClicked)
+        .on("touchstart", itemWasClicked)
+        .on("mousedown", function(d) { 
+            if (!mobile) {
+                itemWasClicked(d);
+            }
+        })
+
+        /*.on("click touchstart", function(d) {
+
+
+            var e = d3.event;
+            try {
+                var t2 = e.timeStamp,
+                    t1 = $(this).data('lastTouch') || t2,
+                    dt = t2 - t1,
+                    fingers = e.originalEvent ? e.originalEvent.touches.length : 0;
+
+                $(this).data('lastTouch', t2);
+
+                if (!dt || dt > 500 || fingers > 1) return;
+
+                e.preventDefault(); 
+            }
+            catch (ex) {
+                alert("Error: " + ex);
+            }
+
+        }) 
+*/
+
+
+
         // .on("mouseover", function(d) {      
         //     tooltip.text(d.title)
         //         .transition()        
@@ -242,7 +320,7 @@ function restart() {
         // .on("mouseout", function(d) {       
         //     tooltip.style("opacity", 0);   
         // })
-        .call(force.drag);
+.call(force.drag);
         // .each(function(d, b) {
         //     if (d.type === "person") {
         //         d3.select("#"+d.id)
@@ -256,19 +334,19 @@ function restart() {
         //     console.log("ended:", this);
         // });
 
-    g.append("svg:circle")
-        .attr("r", radius)
-        .style("fill", fill)
-        .style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.7); });
+g.append("svg:circle")
+.attr("r", radius)
+.style("fill", fill)
+.style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.7); });
 
-    g.append("svg:text")
-        .text(function(d) { return d.title; })
-        .style("width", function(d) { return radius(d) * 1.8})
-        .style("text-anchor", "middle")
+g.append("svg:text")
+.text(function(d) { return d.title; })
+.style("width", function(d) { return radius(d) * 1.8})
+.style("text-anchor", "middle")
         .attr("x", 0) // function(d) { return -radius(d) * 0.9})
-        .attr("y", 5);
+.attr("y", 5);
 
-    node.exit().remove();
+node.exit().remove();
 
     // node
     //     .append("image")
@@ -352,15 +430,15 @@ function indexOfLink(link) {
         if ((link.source.id == l.source.id && link.target.id == l.target.id) ||
             (link.target.id == l.source.id && link.source.id == l.target.id)) {
             index = i;
-        }
-    })
+    }
+})
 
     return index;
 }
 
 function setItemOpen(d, open) {
 
-    console.log("setItemOpen:", open, d);
+    // console.log("setItemOpen:", open, d);
 
     var d3Element = d3.select("#"+d.id);
 
@@ -372,116 +450,131 @@ function setItemOpen(d, open) {
         d3Element.attr("data-open", "0");
 
         d3Element.select("text").transition().duration(500).style("opacity", "1.0");
+        d3.selectAll(".link").transition().duration(500).style("opacity", "1.0");
 
         d3Element.select("circle")
-            .transition().duration(500)
-            .attr("r", radius(d));                
+        .transition().duration(500)
+        .attr("r", radius(d));
 
         $(".edit-box").hide();
-
+        modalOpen = false;
     }
     else {
         // open
-        setElementHidden(allOtherElements(d3Element), true, 250);
-        d.open = true;
+        // setElementHidden(allOtherElements(d3Element), true, 250);
 
+        modalOpen = true;
+        d.open = true;
         d3Element.attr("data-open", "1");
 
         d3Element.select("text").transition().duration(500).style("opacity", "0.0");
+        d3.selectAll(".link").transition().duration(500).style("opacity", "0.1");
 
         d3Element.select("circle")
-            .transition().duration(500)
-            .attr("r", Math.min(w, h)*0.45)
-            .each("end", function() {
-                $("#activity-title").val(d.title);
-                $("#activity-description").val(d.description);
-                // console.log("set desc to", )
-
-                $("#activity-priority").text(d.priority);
-                $("#priority-slider").slider("setValue", d.priority);
-
-                $(".edit-box").fadeIn(250);
-                $("#activity-description").focus();
-            });
+        .transition().duration(500)
+        .attr("r", Math.min(w, h)*0.45)
+        .each("end", function() {
+            $("#activity-title").val(d.title);
+            $("#activity-description").val(d.description);
+            $("#activity-priority").text(d.priority);
+            $("#priority-slider").slider("setValue", d.priority);
+            $(".edit-box").fadeIn(250);
+            $("#activity-title").focus();
+        });
     }
+
     restart();
 }
 
 function itemWasClicked(d) {
 
-    clickCount++;
-    console.log("cc", clickCount);
+    if (modalOpen) {
+        return;
+    }
 
-    var d3Element = d3.select(this);
-    var alreadySelected = (d3Element.attr("data-selected") === "1");
+    var e = d3.event,
+    t2 = e.timeStamp,
+    t1 = d.lastTouch || t2,
+    dt = t2 - t1,
+    fingers = e.originalEvent ? e.originalEvent.touches.length : 0;
 
-    // console.log(d);
-    var newSelectedItem = d;
+    d.lastTouch = t2;
 
-    if (alreadySelected) {
-        if (d.type === "activity" && clickCount > 1) {
-            setItemOpen(d, !d.open);
-        }
-        else {
+    // if (fingers > 1) 
+    //     return;
+
+    if (!dt || dt > 500 ) {
+        // Single click
+        var d3Element = d3.select("#" + d.id);
+
+        var alreadySelected = (d3Element.attr("data-selected") === "1");
+        var newSelectedItem = d;
+
+        if (alreadySelected) {
             setElementSelected(node, false);
             setElementInvalid(node, false);
             selectedItem = null;
         }
-    }
-    else {
-        // Deselect all items
-        setElementSelected(node, false);
-        setElementInvalid(node, false);
+        else {
+            // Deselect all items
+            setElementSelected(node, false);
+            setElementInvalid(node, false);
 
-        var oldSelectedItem = selectedItem;
-        var changeSelection = false;
+            var oldSelectedItem = selectedItem;
+            var changeSelection = false;
 
-        if (oldSelectedItem) {
+            if (oldSelectedItem) {
 
-            console.log("old", oldSelectedItem);
+                if (oldSelectedItem.type !== newSelectedItem.type) {
+                    // Connect this item to other if it's a different type
 
-            if (oldSelectedItem.type !== newSelectedItem.type) {
-                // Connect this item to other if it's a different type
+                    var newLink = {
+                        source:newSelectedItem,
+                        target:oldSelectedItem
+                    };
 
-                var newLink = {
-                    source:newSelectedItem,
-                    target:oldSelectedItem
-                };
+                    var li = indexOfLink(newLink)
 
-                var li = indexOfLink(newLink)
-                // console.log("li", li);
+                    if (li == -1) {
+                        // Add a new link
+                        linkSet.push(newLink);
+                        flashElement(d3Element);
+                    }
+                    else {
+                        // Remove the link
+                        linkSet.splice(li, 1);
+                    }
 
-                if (li == -1) {
-                    // Add a new link
-                    linkSet.push(newLink);
-                    flashElement(d3Element);
+                    selectedItem = null;
+                    restart();                    
                 }
                 else {
-                    // Remove the link
-                    linkSet.splice(li, 1);
+                    changeSelection = true;
                 }
-
-                selectedItem = null;
-                restart();                    
             }
             else {
                 changeSelection = true;
             }
-        }
-        else {
-            changeSelection = true;
-        }
 
-        if (changeSelection) {
-            // Change selection 
-            selectedItem = newSelectedItem;
-            setElementSelected(d3Element, true);
-            setElementSelected(allElementsLinkedToElement(d3Element), true, false);                
-            setElementInvalid(otherSameElements(d3Element), true);
+            if (changeSelection) {
+
+                // Change selection 
+                selectedItem = newSelectedItem;
+                setElementSelected(d3Element, true);
+                setElementSelected(allElementsLinkedToElement(d3Element), true, false);                
+                setElementInvalid(otherSameElements(d3Element), true);
+            }
         }
     }
+    else {
+        console.log("activity:dblclick");
 
-    setTimeout(function() { clickCount--;}, 500);
+        // Double
+        if (d.type === "activity") {
+            selectedItem = d;
+            setItemOpen(d, !d.open);
+        }
+    }
 }
 
 function allElementsLinkedToElement(element) {
@@ -577,8 +670,8 @@ function setElementHidden(element, hide, duration) {
     }
 
     element
-        .transition().duration(duration)
-        .style("opacity", (hide ? "0" : "1"));
+      .transition().duration(duration)
+      .style("opacity", (hide ? "0" : "1"));
 }
 
 function setElementInvalid(element, invalid) {
@@ -587,7 +680,7 @@ function setElementInvalid(element, invalid) {
     }
 
     element
-        .attr("data-invalid", (invalid ? "1" : "0"))
+      .attr("data-invalid", (invalid ? "1" : "0"))
 }
 
 function setElementHighlighted(element, highlighted) {
@@ -596,7 +689,7 @@ function setElementHighlighted(element, highlighted) {
     }
 
     element
-        .attr("data-highlighted", (highlighted ? "1" : "0"))
+      .attr("data-highlighted", (highlighted ? "1" : "0"))
 }
 
 function setElementSelected(element, selected, setData) {
@@ -620,34 +713,31 @@ function setElementSelected(element, selected, setData) {
         if (extendedSelection) {
             // This element is linked to the selected node.
             element
-                .style("stroke-dasharray", "1 0")
-                .transition().duration(250)
-                .style("stroke-width", "3")
-                .style("stroke-dasharray", "15 4");
+            .style("stroke-dasharray", "1 1")
+            .transition().duration(250)
+            .style("stroke-width", "3")
+            .style("stroke-dasharray", "15 4");
         }
         else {
             // Select the tapped element
             element
-                .transition().duration(250)
-                .style("stroke-width", "4")
-                .style("stroke-dasharray", "1 0")
-                .each("end", function() {
-                    element.style("stroke-dasharray", "none")
-                });
+            .transition().duration(250)
+            .style("stroke-width", "4")
+            .style("stroke-dasharray", "none");
         }
     }
     else {
         // Deselect
         element
-            .transition().duration(250)
-            .style("stroke-width", "2")
-            .style("stroke-dasharray", "1 0")
-            .each("end", function() {
-                element.style("stroke-dasharray", "none")
-            });
-    }
+        .transition().duration(250)
+        .style("stroke-width", "2")
+        .style("stroke-dasharray", "none");
+            // .each("end", function() {
+            //     element.style("stroke-dasharray", "none")
+            // });
 }
-    
+}
+
 function flashElement(element) {
     element = element.select("circle");
 
@@ -655,16 +745,16 @@ function flashElement(element) {
     var oold = element.style("opacity");
 
     element
-        .style("stroke-dasharray", "8 4 1 10")
-        .style("stroke-width", "10")
-        .style("opacity", "0.2")
-        .transition().duration(600).ease("cubic-out")
-        .style("opacity", oold)
-        .style("stroke-width", wold)
-        .style("stroke-dasharray", "1 0")
-        .each("end", function() {
-            element.style("stroke-dasharray", "none")
-        });
+    .style("stroke-dasharray", "8 4 1 10")
+    .style("stroke-width", "10")
+    .style("opacity", "0.2")
+    .transition().duration(600).ease("cubic-out")
+    .style("opacity", oold)
+    .style("stroke-width", wold)
+    .style("stroke-dasharray", "1 0")
+    .each("end", function() {
+        element.style("stroke-dasharray", "none")
+    });
 }
 
 function addControlEventHandlers() {
@@ -678,27 +768,33 @@ function addControlEventHandlers() {
     //     // setElementInvalid(node, false);
 
     // })
-    .on("dblclick", function() {
+.on("dblclick", function() {
 
-        if (clickCount > 0) {
-            return;            
-        }
+    if (modalOpen) {
+        return;
+    }
 
-        var p1 = d3.svg.mouse(this);
+    console.log("svg:dblclick");
 
-        var newNode = {
-            scratch:true,
-            id: "activity-" + nodeSet.length,
-            type: "activity",
-            priority:50,
-            title:greekLetter(nodeSet.length),
-            attractor:{x:w/2, y:h/2},
-            x: p1[0], 
-            y: p1[1]
-        };
+    if (clickCount > 0) {
+        return;            
+    }
 
-        nodeSet.push(newNode);
-        restart();
+    var p1 = d3.event;
+
+    var newNode = {
+        scratch:true,
+        id: "activity-" + nodeSet.length,
+        type: "activity",
+        priority:50,
+        title:greekLetter(nodeSet.length),
+        attractor:{x:w/2, y:h/2},
+        x: p1[0], 
+        y: p1[1]
+    };
+
+    nodeSet.push(newNode);
+    restart();
 
         // TODO: clean this up
         selectedItem = newNode;
@@ -708,15 +804,16 @@ function addControlEventHandlers() {
         setItemOpen(selectedItem, true);
 
     })
-    .on("mousemove", function(e) {
-        tooltip
-            .style("left", (d3.event.pageX - 30) + "px")
-            .style("top", (d3.event.pageY + 28) + "px");
 
-    });
+.on("mousemove", function(e) {
+    tooltip
+    .style("left", (d3.event.pageX - 30) + "px")
+    .style("top", (d3.event.pageY + 28) + "px");
 
-    $(".remove-button").click(function() {
-        setItemOpen(selectedItem, false);
+});
+
+$(".remove-button").click(function() {
+    setItemOpen(selectedItem, false);
 
         // TODO: Fix this. the node isn't removing properly.
         // TODO: Remove links
@@ -732,14 +829,20 @@ function addControlEventHandlers() {
         }
     });
 
-    $(".ok-button").click(function() {
-        selectedItem.title = $("#activity-title").val();
-        selectedItem.priority = $("#priority-slider").val();
-        selectedItem.description = $("#activity-description").val();
+$(".ok-button").click(function() {
+    console.log("SAVE:", selectedItem.id);
 
-        if (selectedItem.scratch) {
+    var originalElementId = selectedItem.id;
+
+    selectedItem.title = $("#activity-title").val();
+    selectedItem.priority = $("#priority-slider").val();
+    selectedItem.description = $("#activity-description").val();
+
+    if (true || selectedItem.scratch) {
             // New 
-            Meteor.call('createActivity', {
+            Meteor.call('saveActivity', {
+                id: selectedItem._id,
+                scratch: selectedItem.scratch,
                 title: selectedItem.title,
                 description: selectedItem.description,
                 priority: selectedItem.priority,
@@ -749,24 +852,41 @@ function addControlEventHandlers() {
                     alert("Error: " + error.reason + " " + error.details);
                 }
                 else {
+
+                    // TODO: figure out how much insert/update code 
+                    // should be here vs. in the observers
+
                     // Session.set("selected", activity);
 
-                    // Change element's ID
-                    var newId = "activity-" + activityId;
-                    $("#" + selectedItem.id).attr("id", newId);
+                    console.log("DID SAVE:", activityId);
+
+                    var $element;
+
+                    if (selectedItem.scratch) {
+                        console.log("changing id from ", selectedItem.id, "to", newId);
+                        newId = "activity-" + activityId;
+
+                        // Change element's ID
+                        $element = $("#" + originalElementId);
+                        $element.attr("id", newId);
+                        selectedItem.id = newId;
+                        delete(selectedItem.scratch);
+                    }
+                    else {
+                        $element = $("#" + originalElementId);
+                    }
 
                     // Change element's text element's text
-                    d3.select("#" + newId + " text").text(selectedItem.title);
+                    d3.select("#" + selectedItem.id + " text").text(selectedItem.title);
 
-                    selectedItem.id = newId;
-                    delete(selectedItem.scratch);
-                    console.log(Activities.find().count(), "Created", activityId);
+                    console.log(Activities.find().count(), "Saved", activityId);
                     setItemOpen(selectedItem, false);
+                    $element.attr("data-selected", "0");
                     selectedItem = null;
                 }
             });
-        }
-        else {
+}
+else {
             // Updating an exiting activity
 
             console.log("TODO: update")
@@ -791,17 +911,17 @@ function radius(d) {
                             .domain([0,100])  // input
                             .range([TARGET_RADIUS_MIN, TARGET_RADIUS_MAX]);  // output
 
-        return radiusScale(d.priority);
-    }
-}
+                            return radiusScale(d.priority);
+                        }
+                    }
 
-function fill(d) {
-    if (d.priority == null) {
-        return d3.rgb(250, 250, 250);
-    }
+                    function fill(d) {
+                        if (d.priority == null) {
+                            return d3.rgb(250, 250, 250);
+                        }
 
-    return color(d.priority);
-}
+                        return color(d.priority);
+                    }
 
 
 
@@ -820,7 +940,7 @@ Template.details.creatorName = function () {
   var owner = Meteor.users.findOne(this.owner);
   if (owner._id === Meteor.userId())
     return "me";
-  return displayName(owner);
+return displayName(owner);
 };
 
 Template.details.canRemove = function () {
@@ -847,9 +967,9 @@ Template.details.priorityPct = function () {
 Template.details.rendered = function () {
     var activity = Session.get("selected");
 
-  $('#slider-create').slider();
+    $('#slider-create').slider();
 
-  $('#slider-details').slider()
+    $('#slider-details').slider()
     .on('slide', function(ev) 
     {
       // console.log("setting", Session.get("selected"), "priority", ev.value);
@@ -865,15 +985,15 @@ Template.details.events({
   'click .remove': function () {
     Activities.remove(this._id);
     return false;
-  },
+},
 
-  'click .view': function () {
+'click .view': function () {
     if (this.link)
     {
       window.open(this.link, "_blank")
       return false;      
-    }
   }
+}
 
 });
 
@@ -907,18 +1027,18 @@ var coordsRelativeToElement = function (element, event) {
 Template.teamAreaZone.events({
   'mousedown circle, mousedown text': function (event, template) {
     Session.set("selected", event.currentTarget.id);
-  },
-  'dblclick .team-activity-zone': function (event, template) {
+},
+'dblclick .team-activity-zone': function (event, template) {
     if (! Meteor.userId())
     {
       // must be logged in to create events
       // console.log("Not logged in");
       return;
-    }
-    var coords = coordsRelativeToElement(event.currentTarget, event);
+  }
+  var coords = coordsRelativeToElement(event.currentTarget, event);
     // console.log("Coords", coords);
     openCreateDialog(coords.x / 500, coords.y / 500);
-  }
+}
 });
 
 Template.teamAreaZone.rendered = function ()
@@ -936,7 +1056,7 @@ Template.teamAreaZone.rendered = function ()
       var radius = function (activity) 
       {
         return 30 + Math.sqrt(activity.priority) * 50;
-      };
+    };
 
       /*
       var defaultGravity = 0.08;
@@ -1016,8 +1136,8 @@ Template.teamAreaZone.rendered = function ()
       updateLabels(labels.transition().duration(250).ease("cubic-out"));
       labels.exit().remove();
       */
-    });
-  }
+  });
+}
 };
 
 Template.teamAreaZone.destroyed = function ()
@@ -1069,32 +1189,32 @@ Template.createDialog.events(
         link: link,
         team: 1,
         priority: 0.5
-      }, 
-      function (error, activity)
-      {
+    }, 
+    function (error, activity)
+    {
         if (! error) {
           console.log("inserted activity:", activity);
           Session.set("selected", activity);
-        }
-        else
-        {
+      }
+      else
+      {
           console.log("insert error:", error);
-        }
-      });
+      }
+  });
 
       Session.set("showCreateDialog", false);
-    } 
-    else
-    {
-      Session.set("createError",
-                  "Do elaborate a bit, please.");
-    }
-  },
-
-  'click .cancel': function ()
+  } 
+  else
   {
-    Session.set("showCreateDialog", false);
+      Session.set("createError",
+          "Do elaborate a bit, please.");
   }
+},
+
+'click .cancel': function ()
+{
+    Session.set("showCreateDialog", false);
+}
 
 });
 
