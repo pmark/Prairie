@@ -287,11 +287,10 @@ function restart() {
 
     node = node.data(nodeSet);
 
-
     var g = node.enter()
-    .append("svg:g")
-    .attr("class", function(d) { return "node " + d.type; })
-    .attr("type", function (d) { return d.type; })
+        .append("svg:g")
+        .attr("class", function(d) { return "node " + d.type; })
+        .attr("type", function (d) { return d.type; })
         .attr("id", function (d) { return d.id; }) // use meteor's d._id maybe
         .on("touchstart", itemWasClicked)
         .on("mousedown", function(d) { 
@@ -299,6 +298,8 @@ function restart() {
                 itemWasClicked(d);
             }
         })
+        .call(force.drag);
+
 
         /*.on("click touchstart", function(d) {
 
@@ -321,7 +322,7 @@ function restart() {
             }
 
         }) 
-*/
+        */
 
 
 
@@ -338,7 +339,9 @@ function restart() {
         // .on("mouseout", function(d) {       
         //     tooltip.style("opacity", 0);   
         // })
-.call(force.drag);
+
+
+    ///////////////
         // .each(function(d, b) {
         //     if (d.type === "person") {
         //         d3.select("#"+d.id)
@@ -352,19 +355,19 @@ function restart() {
         //     console.log("ended:", this);
         // });
 
-g.append("svg:circle")
-.attr("r", radius)
-.style("fill", fill)
-.style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.7); });
+    g.append("svg:circle")
+        .attr("r", radius)
+        .style("fill", fill)
+        .style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.7); });
 
-g.append("svg:text")
-.text(function(d) { return d.title; })
-.style("width", function(d) { return radius(d) * 1.8})
-.style("text-anchor", "middle")
-        .attr("x", 0) // function(d) { return -radius(d) * 0.9})
-.attr("y", 5);
+    g.append("svg:text")
+        .text(function(d) { return d.title; })
+        .style("width", function(d) { return radius(d) * 1.8})
+        .style("text-anchor", "middle")
+                .attr("x", 0) // function(d) { return -radius(d) * 0.9})
+        .attr("y", 5);
 
-node.exit().remove();
+    node.exit().remove();
 
     // node
     //     .append("image")
@@ -732,30 +735,31 @@ function setElementSelected(element, selected, setData) {
         if (extendedSelection) {
             // This element is linked to the selected node.
             element
-            .style("stroke-dasharray", "1 1")
-            .transition().duration(250)
-            .style("stroke-width", "3")
-            .style("stroke-dasharray", "15 4");
+                .style("stroke-dasharray", "1 1")
+                .transition().duration(250)
+                .style("stroke-width", "3")
+                .style("stroke-dasharray", "15 4");
         }
         else {
             // Select the tapped element
             element
-            .transition().duration(250)
-            .style("stroke-width", "4")
-            .style("stroke-dasharray", "none");
+                .transition().duration(250)
+                .style("stroke-width", "4")
+                .style("stroke-dasharray", "none");
         }
     }
     else {
         // Deselect
         element
-        .transition().duration(250)
-        .style("stroke-width", "2")
-        .style("stroke-dasharray", "none");
+            .transition().duration(250)
+            .style("stroke-width", "2")
+            .style("stroke-dasharray", "none");
             // .each("end", function() {
             //     element.style("stroke-dasharray", "none")
             // });
+    }
 }
-}
+
 
 function flashElement(element) {
     element = element.select("circle");
@@ -810,31 +814,31 @@ function addControlEventHandlers() {
 
     }); // end dblclick
 
-// .on("mousemove", function(e) {
-//     tooltip
-//     .style("left", (d3.event.pageX - 30) + "px")
-//     .style("top", (d3.event.pageY + 28) + "px");
+    // .on("mousemove", function(e) {
+    //     tooltip
+    //     .style("left", (d3.event.pageX - 30) + "px")
+    //     .style("top", (d3.event.pageY + 28) + "px");
 
-// });
+    // });
 
-$(".remove-button").click(function() {
-    setItemOpen(selectedItem, false);
+    $(".remove-button").click(function() {
+        setItemOpen(selectedItem, false);
 
-    // TODO: Fix this. the node isn't removing properly.
-    // TODO: Remove links
+        // TODO: Fix this. the node isn't removing properly.
+        // TODO: Remove links
 
-    var ni;
-    if ((ni = indexOfNode(selectedItem)) != -1) {
-        // console.log(nodeSet.length, 'nodes');
-        var d = nodeSet.splice(ni, 1)[0];
-        // console.log(nodeSet.length, 'nodes');
-        // console.log("removed index", ni, d.id);
-        // d3.select(d.id);
-        restart();
-    }
-});
+        var ni;
+        if ((ni = indexOfNode(selectedItem)) != -1) {
+            // console.log(nodeSet.length, 'nodes');
+            var d = nodeSet.splice(ni, 1)[0];
+            // console.log(nodeSet.length, 'nodes');
+            // console.log("removed index", ni, d.id);
+            // d3.select(d.id);
+            restart();
+        }
+    });
 
-$(".ok-button").click(function() {
+    $(".ok-button").click(function() {
     console.log("SAVE:", selectedItem.id);
 
     var originalElementId = selectedItem.id;
@@ -926,7 +930,6 @@ function fill(d) {
     }
     return color(d.priority);
 }
-
 
 
 ///////////////////////////////////////////////////////////////////////////////
