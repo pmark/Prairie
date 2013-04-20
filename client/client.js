@@ -1,3 +1,5 @@
+// Prairie -- client
+
 var $chart = null,
 w = null,
 h = null,
@@ -15,27 +17,55 @@ titleField = null,
 descriptionField = null,
 prioritySlider = null,
 selectedItem = null,
-clickCount = 0,
 modalOpen = false,
 mobile = null,
 activitiesSubscription = null;
 
-function addActivity(activityData) {
+function updateIfSet(fieldSet, fieldName, value) {
+    if (typeof(value) !== "undefined") {
+        fieldSet[fieldName] = value;
+    }
+}
+
+function addActivity(fields) {
     var angle = (Math.PI * 2 / nodeSet.length) * nodeSet.length;
     var distance = radius({priority:100}) * 2;
 
-    activityData.type = "activity";
-    activityData.x = w/2 + Math.cos(angle) * distance;
-    activityData.y = h/2 + Math.sin(angle) * distance;
-    activityData.attractor = {x:w/2, y:h/2};
-    activityData.id = "activity-" + activityData._id;
+    fields.id = "activity-" + fields._id;
+    fields.type = "activity";
+    fields.x = w/2 + Math.cos(angle) * distance;
+    fields.y = h/2 + Math.sin(angle) * distance;
+    fields.attractor = {x:w/2, y:h/2};
 
-    console.log("Added", activityData);
-
-    nodeSet.push(activityData);
+    nodeSet.push(fields);
+    console.log("Added", fields);
 }
 
-// Prairie -- client
+function activityElementId(activityItemId) {
+    return "activity-" + activityItemId;
+}
+
+function updateActivity(activityId, fields) {
+    console.log("---------updateActivity", activityId, fields);
+    var elementId = activityElementId(activityId);
+    var activityItem = findNodeById(elementId);
+
+    for (var key in fields) {
+        activityItem[key] = fields[key];
+    }    
+
+    var d3Element = d3.select("#" + elementId);
+    d3Element.select("text").text(activityItem.title);
+
+    // console.log("updating", elementId, d3Element.select(".node"));
+
+    var fillColor = fill(activityItem);
+
+    d3.select("#" + elementId + " circle").transition().duration(500)
+        .attr("r", radius)
+        .style("fill", fillColor)
+        .style("stroke", function(d) { return d3.rgb(fillColor).darker(0.7); });
+}
 
 Meteor.subscribe("directory", function() {
     console.log("directory ready");
@@ -58,23 +88,11 @@ activitiesSubscription = Meteor.subscribe("activities", function() {
         changed: function(id, fields) {
             console.log("changed", id);
             fields._id = id;
-            fields.type = "activity";
-            fields.attractor = {x:w/2, y:h/2};
-            fields.id = "activity-" + id;
-
-            for (var i in nodeSet) {
-
-                var d = nodeSet[i];
-
-                if (d._id === id) {
-                    nodeSet[i] = fields;
-                    restart();
-                }
-            }
-
+            updateActivity(id, fields);
+            restart();
         },
         removed: function(id) {
-            console.log("removed", id);
+            console.log("todo: removed", id);
         }
     });
 
@@ -400,8 +418,9 @@ function addPeople() {
 };
 
 function findNodeById(nodeId) {
-    for (var i=0; i < nodeSet.length; i++) {
-        var n = nodes[i];
+    for (var i in nodeSet) {
+
+        var n = nodeSet[i];
 
         if (n.id === nodeId) {
             return n;
@@ -759,75 +778,61 @@ function flashElement(element) {
 
 function addControlEventHandlers() {
 
-    svg
-    // .on("click", function() {
+    svg.on("dblclick", function() {
 
-    //     // TODO: figure out how to not interfere with normal node selection.
-    //     // Deselect all items
-    //     // setElementSelected(node, false);
-    //     // setElementInvalid(node, false);
+        if (modalOpen) {
+            return;
+        }
 
-    // })
-.on("dblclick", function() {
+        console.log("svg:dblclick");
 
-    if (modalOpen) {
-        return;
-    }
+        var p1 = d3.event;
 
-    console.log("svg:dblclick");
+        var newNode = {
+            scratch:true,
+            id: "activity-" + nodeSet.length,
+            type: "activity",
+            priority:50,
+            title:greekLetter(nodeSet.length),
+            attractor:{x:w/2, y:h/2},
+            x: p1[0], 
+            y: p1[1]
+        };
 
-    if (clickCount > 0) {
-        return;            
-    }
+        nodeSet.push(newNode);
+        restart();
 
-    var p1 = d3.event;
-
-    var newNode = {
-        scratch:true,
-        id: "activity-" + nodeSet.length,
-        type: "activity",
-        priority:50,
-        title:greekLetter(nodeSet.length),
-        attractor:{x:w/2, y:h/2},
-        x: p1[0], 
-        y: p1[1]
-    };
-
-    nodeSet.push(newNode);
-    restart();
-
-        // TODO: clean this up
         selectedItem = newNode;
         var d3Element = d3.select("#"+selectedItem.id);
-        setElementSelected(d3Element, true);
-        setElementInvalid(otherSameElements(d3Element), true);
+        // setElementSelected(d3Element, true);
         setItemOpen(selectedItem, true);
+        setElementInvalid(allOtherElements(d3Element), true);
 
-    })
+    }); // end dblclick
 
-.on("mousemove", function(e) {
-    tooltip
-    .style("left", (d3.event.pageX - 30) + "px")
-    .style("top", (d3.event.pageY + 28) + "px");
+// .on("mousemove", function(e) {
+//     tooltip
+//     .style("left", (d3.event.pageX - 30) + "px")
+//     .style("top", (d3.event.pageY + 28) + "px");
 
-});
+// });
 
 $(".remove-button").click(function() {
     setItemOpen(selectedItem, false);
 
-        // TODO: Fix this. the node isn't removing properly.
-        // TODO: Remove links
+    // TODO: Fix this. the node isn't removing properly.
+    // TODO: Remove links
 
-        var ni;
-        if ((ni = indexOfNode(selectedItem)) != -1) {
-            // console.log(nodeSet.length, 'nodes');
-            var d = nodeSet.splice(ni, 1)[0];
-            // console.log(nodeSet.length, 'nodes');
-            // console.log("removed index", ni, d.id);
-            // d3.select(d.id);
-            restart();
-        }
-    });
+    var ni;
+    if ((ni = indexOfNode(selectedItem)) != -1) {
+        // console.log(nodeSet.length, 'nodes');
+        var d = nodeSet.splice(ni, 1)[0];
+        // console.log(nodeSet.length, 'nodes');
+        // console.log("removed index", ni, d.id);
+        // d3.select(d.id);
+        restart();
+    }
+});
 
 $(".ok-button").click(function() {
     console.log("SAVE:", selectedItem.id);
@@ -839,64 +844,65 @@ $(".ok-button").click(function() {
     selectedItem.description = $("#activity-description").val();
 
     if (true || selectedItem.scratch) {
-            // New 
-            Meteor.call('saveActivity', {
-                id: selectedItem._id,
-                scratch: selectedItem.scratch,
-                title: selectedItem.title,
-                description: selectedItem.description,
-                priority: selectedItem.priority,
-                team: 1
-            }, function (error, activityId) {
-                if (error) {
-                    alert("Error: " + error.reason + " " + error.details);
+
+
+        var activityItem = {
+            id: selectedItem._id,
+            scratch: selectedItem.scratch,
+            title: selectedItem.title,
+            description: selectedItem.description,
+            priority: selectedItem.priority,
+            team: 1
+        };
+
+        console.log("ABOUT TO SAVE:", activityItem);
+
+
+        Meteor.call('saveActivity', activityItem, 
+        function (error, activityId) {
+            if (error) {
+                alert("Error: " + error.reason + " " + error.details);
+            }
+            else {
+                setItemOpen(selectedItem, false);
+                selectedItem = null;
+                return;
+
+
+
+                activityId = activityId || selectedItem._id;
+                console.log("DID SAVE:", activityId, "::::::", selectedItem);
+                var $element;
+
+                if (selectedItem.scratch) {
+                    newElementId = "activity-" + activityId;
+                    console.log("changing scratch id from ", originalElementId, "to", newElementId);
+                    $element = $("#" + originalElementId);
+                    $element.attr("id", newElementId);
+                    selectedItem.id = newElementId;
+                    delete(selectedItem.scratch);
                 }
                 else {
-
-                    // TODO: figure out how much insert/update code 
-                    // should be here vs. in the observers
-
-                    // Session.set("selected", activity);
-
-                    console.log("DID SAVE:", activityId);
-
-                    var $element;
-
-                    if (selectedItem.scratch) {
-                        console.log("changing id from ", selectedItem.id, "to", newId);
-                        newId = "activity-" + activityId;
-
-                        // Change element's ID
-                        $element = $("#" + originalElementId);
-                        $element.attr("id", newId);
-                        selectedItem.id = newId;
-                        delete(selectedItem.scratch);
-                    }
-                    else {
-                        $element = $("#" + originalElementId);
-                    }
-
-                    // Change element's text element's text
-                    d3.select("#" + selectedItem.id + " text").text(selectedItem.title);
-
-                    console.log(Activities.find().count(), "Saved", activityId);
-                    setItemOpen(selectedItem, false);
-                    $element.attr("data-selected", "0");
-                    selectedItem = null;
+                    $element = $("#" + originalElementId);
                 }
-            });
-}
-else {
+
+                setItemOpen(selectedItem, false);
+                $element.attr("data-selected", "0");
+                selectedItem = null;
+            }
+        });
+    }
+    else {
             // Updating an exiting activity
 
             console.log("TODO: update")
             setItemOpen(selectedItem, false);
             selectedItem = null;
-            clickCount = 0;
         }
 
-    })
-};
+    }); // end ok-button click
+
+} // end addControlEventHandlers
 
 function radius(d) {
     var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([44,100]);
@@ -908,20 +914,18 @@ function radius(d) {
     }
     else {
         var radiusScale = d3.scale.linear()
-                            .domain([0,100])  // input
-                            .range([TARGET_RADIUS_MIN, TARGET_RADIUS_MAX]);  // output
+            .domain([0,100])  // input
+            .range([TARGET_RADIUS_MIN, TARGET_RADIUS_MAX]);  // output
+        return radiusScale(d.priority);
+    }
+}
 
-                            return radiusScale(d.priority);
-                        }
-                    }
-
-                    function fill(d) {
-                        if (d.priority == null) {
-                            return d3.rgb(250, 250, 250);
-                        }
-
-                        return color(d.priority);
-                    }
+function fill(d) {
+    if (d.priority == null) {
+        return d3.rgb(250, 250, 250);
+    }
+    return color(d.priority);
+}
 
 
 

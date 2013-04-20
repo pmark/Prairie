@@ -68,7 +68,6 @@ Meteor.methods({
       owner: this.userId,
       team: options.team || 1,
       priority: options.priority || 50,
-      link: options.link,
       title: options.title || '?',
       description: options.description
     };
