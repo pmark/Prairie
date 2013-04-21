@@ -19,7 +19,11 @@ var $chart = null,
     selectedItem = null,
     modalOpen = false,
     mobile = null,
-    activitiesSubscription = null;
+    dragging = false,
+    activitiesSubscription = null,
+    clickTimer = null,
+    touchDown = false,
+    CLICK_TIMEOUT_MS = 120;
 
 
 activitiesSubscription = Meteor.subscribe("activities", function() {
@@ -178,7 +182,7 @@ function useTheForce() {
     var gravityScale = d3.scale.linear().domain([320,1280]).range([0.38, 0.01]);
 
     force = d3.layout.force()
-        .gravity(gravityScale(w))  // default 0.1
+        .gravity(gravityScale(Math.min(1280, w)))  // default 0.1
         .charge(-2100)  // default -30
         .linkStrength(0.06) // default 1
         .size([w, h]);
@@ -222,7 +226,7 @@ function useTheForce() {
     force.on("tick", function(e) {
 
         var k = e.alpha * .1;
-        var edgePadding = 6;
+        var edgePadding = 10;
 
         nodeSet.forEach(function(d) {
             if (d.open) {
@@ -294,8 +298,22 @@ function restart() {
         .attr("class", function(d) { return "node " + d.type; })
         .attr("type", function (d) { return d.type; })
         .attr("id", function (d) { return d.id; }) // use meteor's d._id maybe
-        .on("touchstart", itemWasClicked)
+        .on("touchstart", function(d) {
+            touchDown = true;
+            itemWasClicked(d);
+        })
+        .on("mouseup", function(d) {
+            touchDown = false;
+        })
+        .on("click", function(d) {
+            console.log("click")
+        })
+        .on("mousemove", function(d) {
+            dragging = true;
+        })
         .on("mousedown", function(d) { 
+            touchDown = true;
+
             if (!mobile) {
                 itemWasClicked(d);
             }
@@ -462,8 +480,6 @@ function indexOfLink(link) {
 
 function setItemOpen(d, open) {
 
-    // console.log("setItemOpen:", open, d);
-
     var d3Element = d3.select("#"+d.id);
 
     if (d.open) {
@@ -473,8 +489,8 @@ function setItemOpen(d, open) {
 
         d3Element.attr("data-open", "0");
 
-        d3Element.select("text").transition().duration(500).style("opacity", "1.0");
-        d3.selectAll(".link").transition().duration(500).style("opacity", "1.0");
+        d3Element.select("text").transition().duration(250).style("opacity", "1.0");
+        d3.selectAll(".link").transition().duration(250).style("opacity", "1.0");
 
         d3Element.select("circle")
             .transition().duration(500)
@@ -490,11 +506,12 @@ function setItemOpen(d, open) {
         modalOpen = true;
         d.open = true;
         d3Element.attr("data-open", "1");
-        d3Element.select("text").transition().duration(500).style("opacity", "0.0");
-        d3.selectAll(".link").transition().duration(500).style("opacity", "0.0");
+        d3Element.select("text").transition().duration(250).style("opacity", "0.0");
+        d3.selectAll(".link").transition().duration(250).style("opacity", "0.0");
 
         d3Element.select("circle")
             .transition().duration(500)
+            .style("stroke-width", "2")
             .attr("r", Math.min(w, h)*0.45)
             .each("end", function() {
                 $("#activity-title").val(d.title);
@@ -510,6 +527,19 @@ function setItemOpen(d, open) {
     restart();
 }
 
+function clearSelection(preserveSelectedItem) {
+    setElementSelected(node, false, true);
+    setElementInvalid(node, false);
+
+    if (!preserveSelectedItem) {
+        selectedItem = null;
+    }
+}
+
+function timestamp() {
+    return (new Date().getTime());
+}
+
 function itemWasClicked(d) {
 
     if (modalOpen) {
@@ -517,88 +547,104 @@ function itemWasClicked(d) {
     }
 
     var e = d3.event,
-    t2 = e.timeStamp,
-    t1 = d.lastTouch || t2,
-    dt = t2 - t1,
-    fingers = e.originalEvent ? e.originalEvent.touches.length : 0;
+        // t2 = e.timeStamp,
+        // t1 = d.lastTouch || t2,
+        // dt = (t2 - t1),
+        fingers = e.originalEvent ? e.originalEvent.touches.length : 0;
 
-    d.lastTouch = t2;
+    // d.lastTouch = t2;
+    d.clickCount = d.clickCount || 0;
+    d.clickCount++;
 
-    // if (fingers > 1) 
-    //     return;
+    svg.on("dblclick", null);
 
-    if (!dt || dt > 500 ) {
-        // Single click
-        var d3Element = d3.select("#" + d.id);
+    clearTimeout(clickTimer);
 
-        var alreadySelected = (d3Element.attr("data-selected") === "1");
-        var newSelectedItem = d;
+    clickTimer = setTimeout(function() {
+        var cc = d.clickCount;
+        d.clickCount = 0;
 
-        if (alreadySelected) {
-            setElementSelected(node, false);
-            setElementInvalid(node, false);
-            selectedItem = null;
+        if (touchDown) {
+            return;
         }
-        else {
-            // Deselect all items
-            setElementSelected(node, false);
-            setElementInvalid(node, false);
 
-            var oldSelectedItem = selectedItem;
-            var changeSelection = false;
+        if (cc == 1) {
+            svg.on("dblclick", svgDoubleClickHandler);
 
-            if (oldSelectedItem) {
+            // Single click
+            console.log("single");
+            var d3Element = d3.select("#" + d.id);
 
-                if (oldSelectedItem.type !== newSelectedItem.type) {
-                    // Connect this item to other if it's a different type
+            var alreadySelected = (d3Element.attr("data-selected") === "1");
+            var newSelectedItem = d;
 
-                    var newLink = {
-                        source:newSelectedItem,
-                        target:oldSelectedItem
-                    };
+            if (alreadySelected) {
+                clearSelection();
+            }
+            else {
+                var oldSelectedItem = selectedItem;
+                var changeSelection = false;
 
-                    var li = indexOfLink(newLink)
+                // Deselect all items
+                clearSelection();
+                // setElementSelected(node, false);
+                // setElementInvalid(node, false);
 
-                    if (li == -1) {
-                        // Add a new link
-                        linkSet.push(newLink);
-                        flashElement(d3Element);
+                if (oldSelectedItem) {
+
+                    if (oldSelectedItem.type !== newSelectedItem.type) {
+                        // Connect this item to other if it's a different type
+
+                        var newLink = {
+                            source:newSelectedItem,
+                            target:oldSelectedItem
+                        };
+
+                        var li = indexOfLink(newLink)
+
+                        if (li == -1) {
+                            // Add a new link
+                            linkSet.push(newLink);
+                            flashElement(d3Element);
+                        }
+                        else {
+                            // Remove the link
+                            linkSet.splice(li, 1);
+                        }
+
+                        console.log("connected")
+                        selectedItem = null;
+                        restart();                    
                     }
                     else {
-                        // Remove the link
-                        linkSet.splice(li, 1);
+                        changeSelection = true;
                     }
-
-                    selectedItem = null;
-                    restart();                    
                 }
                 else {
                     changeSelection = true;
                 }
-            }
-            else {
-                changeSelection = true;
-            }
 
-            if (changeSelection) {
+                if (changeSelection) {
 
-                // Change selection 
-                selectedItem = newSelectedItem;
-                setElementSelected(d3Element, true);
-                setElementSelected(allElementsLinkedToElement(d3Element), true, false);                
-                setElementInvalid(otherSameElements(d3Element), true);
+                    // Change selection 
+                    selectedItem = newSelectedItem;
+                    setElementSelected(d3Element, true);
+                    setElementSelected(allElementsLinkedToElement(d3Element), true, false);                
+                    setElementInvalid(otherSameElements(d3Element), true);
+                }
             }
         }
-    }
-    else {
-        console.log("activity:dblclick");
+        else {
+            console.log("activity:dblclick");
 
-        // Double
-        if (d.type === "activity") {
-            selectedItem = d;
-            setItemOpen(d, !d.open);
+            // Double
+            if (d.type === "activity") {
+                selectedItem = d;
+                setItemOpen(d, !d.open);
+            }
         }
-    }
+
+    }, CLICK_TIMEOUT_MS);
 }
 
 function allElementsLinkedToElement(element) {
@@ -684,18 +730,24 @@ function allOtherElements(element) {
         return null;
 }
 
+function allNodeElements() {
+    return svg.selectAll(".node");
+}
+
 function setElementHidden(element, hide, duration) {
     if (!element || element.length == 0) {
         return;
     }
 
-    if (duration == null) {
-        duration = 250;
-    }
+    element.classed("invisible", hide);
 
-    element
-      .transition().duration(duration)
-      .style("opacity", (hide ? "0" : "1"));
+    // if (duration == null) {
+    //     duration = 250;
+    // }
+
+    // element
+    //   .transition().duration(duration)
+    //   .style("opacity", (hide ? "0" : ""));
 }
 
 function setElementInvalid(element, invalid) {
@@ -756,9 +808,6 @@ function setElementSelected(element, selected, setData) {
             .transition().duration(250)
             .style("stroke-width", "2")
             .style("stroke-dasharray", "none");
-            // .each("end", function() {
-            //     element.style("stroke-dasharray", "none")
-            // });
     }
 }
 
@@ -789,46 +838,44 @@ function saveActivityCallback(error, activityId) {
     else {
         delete(selectedItem.scratch);
         setItemOpen(selectedItem, false);
+        console.log("saveAC")
         selectedItem = null;
     }
 }
 
+function svgDoubleClickHandler() {
+    if (modalOpen) {
+        return;
+    }
+
+    console.log("svg:dblclick");
+
+    var p1 = d3.event;
+    var _id = newObjectId();
+
+    var newNode = {
+        scratch:true,
+        id: activityElementIdForItemId(_id),
+        _id: _id,
+        type: "activity",
+        priority:50,
+        title:greekLetter(nodeSet.length),
+        attractor:{x:w/2, y:h/2},
+        x: p1[0], 
+        y: p1[1]
+    };
+
+    nodeSet.push(newNode);
+    restart();
+
+    clearSelection();
+    selectedItem = newNode;
+    setItemOpen(selectedItem, true);
+}
+
 function addControlEventHandlers() {
 
-    svg.on("dblclick", function() {
-
-        if (modalOpen) {
-            return;
-        }
-
-        console.log("svg:dblclick");
-
-        var p1 = d3.event;
-
-        var _id = newObjectId();
-
-        var newNode = {
-            scratch:true,
-            id: activityElementIdForItemId(_id),
-            _id: _id,
-            type: "activity",
-            priority:50,
-            title:greekLetter(nodeSet.length),
-            attractor:{x:w/2, y:h/2},
-            x: p1[0], 
-            y: p1[1]
-        };
-
-        nodeSet.push(newNode);
-        restart();
-
-        selectedItem = newNode;
-        var d3Element = d3.select("#"+selectedItem.id);
-        // setElementSelected(d3Element, true);
-        setItemOpen(selectedItem, true);
-        setElementInvalid(allOtherElements(d3Element), true);
-
-    }); // end dblclick
+    svg.on("dblclick", svgDoubleClickHandler);
 
     // .on("mousemove", function(e) {
     //     tooltip
@@ -887,8 +934,8 @@ function guid() {
 }
 
 function radius(d) {
-    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([44,100]);
-    var TARGET_RADIUS_MAX = screenWidthScale(w);
+    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([44,90]);
+    var TARGET_RADIUS_MAX = screenWidthScale(Math.min(1280, w));
     var TARGET_RADIUS_MIN = TARGET_RADIUS_MAX / 2;
 
     if (d.type === "person") {
