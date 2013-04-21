@@ -175,16 +175,17 @@ function addActivity(fields) {
 function useTheForce() {
     // Set up D3 force layout.
 
-    // color = d3.scale.category20();
     color = d3.scale.linear()
-    .domain([0, 50, 100]).range(["gold", "orange", "red"]);
+        .domain([0, 50, 100])
+        .range([d3.rgb(5,175,220), d3.rgb(255,175,0), "#FF2300"]);
+        // .range(["gold", "orange", "red"]);
 
-    var gravityScale = d3.scale.linear().domain([320,1280]).range([0.38, 0.01]);
+    var gravityScale = d3.scale.linear().domain([320,1280]).range([0.45, 0.01]);
 
     force = d3.layout.force()
         .gravity(gravityScale(Math.min(1280, w)))  // default 0.1
-        .charge(-2100)  // default -30
-        .linkStrength(0.06) // default 1
+        .charge(-1300)  // default -30
+        .linkStrength(0.075) // default 1
         .size([w, h]);
 
         var NODE_TYPE_CHART_CENTER = 0,
@@ -226,7 +227,7 @@ function useTheForce() {
     force.on("tick", function(e) {
 
         var k = e.alpha * .1;
-        var edgePadding = 10;
+        var edgePadding = 30;
 
         nodeSet.forEach(function(d) {
             if (d.open) {
@@ -288,10 +289,17 @@ function restart() {
     // var targets = svg.selectAll(".target").data(splitNodes["target"]);
     // // var people = svg.selectAll(".person").data(splitNodes["person"]);
 
-    // console.log("targets: ", splitNodes["target"]);
-    // console.log("nodes: ", nodeSet);
+    // node = svg.selectAll(".node").data(nodeSet, function(d) { return d._id; });
+    node = node.data(nodeSet, function(d) { return d.id; });
 
-    node = node.data(nodeSet);
+    node.exit().transition().duration(450)
+        .style("opacity", 0)
+        .ease("circle")
+        .attr("transform", function(d) {
+          return "translate(" + (Math.random()*(w*0.66) + (w*0.33)) + "," + 
+            (Math.random() > 0.5 ? -100 : h+100) + ")"; 
+        })        
+        .remove();
 
     var g = node.enter()
         .append("svg:g")
@@ -305,9 +313,6 @@ function restart() {
         .on("mouseup", function(d) {
             touchDown = false;
         })
-        .on("click", function(d) {
-            console.log("click")
-        })
         .on("mousemove", function(d) {
             dragging = true;
         })
@@ -319,31 +324,6 @@ function restart() {
             }
         })
         .call(force.drag);
-
-
-        /*.on("click touchstart", function(d) {
-
-
-            var e = d3.event;
-            try {
-                var t2 = e.timeStamp,
-                    t1 = $(this).data('lastTouch') || t2,
-                    dt = t2 - t1,
-                    fingers = e.originalEvent ? e.originalEvent.touches.length : 0;
-
-                $(this).data('lastTouch', t2);
-
-                if (!dt || dt > 500 || fingers > 1) return;
-
-                e.preventDefault(); 
-            }
-            catch (ex) {
-                alert("Error: " + ex);
-            }
-
-        }) 
-        */
-
 
 
         // .on("mouseover", function(d) {      
@@ -386,8 +366,6 @@ function restart() {
         .style("text-anchor", "middle")
                 .attr("x", 0) // function(d) { return -radius(d) * 0.9})
         .attr("y", 5);
-
-    node.exit().remove();
 
     // node
     //     .append("image")
@@ -453,11 +431,11 @@ function findNodeById(nodeId) {
     return null;
 }
 
-function indexOfNode(node) {
+function indexOfItem(item) {
     var index = -1;
 
     nodeSet.forEach(function(n, i) {
-        if (n.id === node.id) {
+        if (n.id === item.id) {
             index = i;
         }
     });
@@ -488,12 +466,11 @@ function setItemOpen(d, open) {
         d.open = false;
 
         d3Element.attr("data-open", "0");
-
         d3Element.select("text").transition().duration(250).style("opacity", "1.0");
         d3.selectAll(".link").transition().duration(250).style("opacity", "1.0");
 
         d3Element.select("circle")
-            .transition().duration(500)
+            .transition().duration(450)
             .attr("r", radius(d));
 
         $(".edit-box").hide();
@@ -501,6 +478,8 @@ function setItemOpen(d, open) {
     }
     else {
         // open
+        setElementSelected(node, false, true);
+        setElementInvalid(node, false);
         setElementHidden(allOtherElements(d3Element), true, 250);
 
         modalOpen = true;
@@ -510,8 +489,9 @@ function setItemOpen(d, open) {
         d3.selectAll(".link").transition().duration(250).style("opacity", "0.0");
 
         d3Element.select("circle")
-            .transition().duration(500)
+            .transition().duration(450)
             .style("stroke-width", "2")
+            .style("stroke-dasharray", "none")
             .attr("r", Math.min(w, h)*0.45)
             .each("end", function() {
                 $("#activity-title").val(d.title);
@@ -564,16 +544,20 @@ function itemWasClicked(d) {
         var cc = d.clickCount;
         d.clickCount = 0;
 
+        svg.on("dblclick", svgDoubleClickHandler);
+
         if (touchDown) {
             return;
         }
 
         if (cc == 1) {
-            svg.on("dblclick", svgDoubleClickHandler);
-
             // Single click
-            console.log("single");
             var d3Element = d3.select("#" + d.id);
+
+            if (!d3Element) {
+                console.log("Element", d, "went away");
+                return;
+            }
 
             var alreadySelected = (d3Element.attr("data-selected") === "1");
             var newSelectedItem = d;
@@ -584,14 +568,9 @@ function itemWasClicked(d) {
             else {
                 var oldSelectedItem = selectedItem;
                 var changeSelection = false;
-
-                // Deselect all items
                 clearSelection();
-                // setElementSelected(node, false);
-                // setElementInvalid(node, false);
 
                 if (oldSelectedItem) {
-
                     if (oldSelectedItem.type !== newSelectedItem.type) {
                         // Connect this item to other if it's a different type
 
@@ -612,7 +591,6 @@ function itemWasClicked(d) {
                             linkSet.splice(li, 1);
                         }
 
-                        console.log("connected")
                         selectedItem = null;
                         restart();                    
                     }
@@ -792,6 +770,7 @@ function setElementSelected(element, selected, setData) {
                 .style("stroke-dasharray", "1 1")
                 .transition().duration(250)
                 .style("stroke-width", "3")
+                .style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.6); })
                 .style("stroke-dasharray", "15 4");
         }
         else {
@@ -799,6 +778,7 @@ function setElementSelected(element, selected, setData) {
             element
                 .transition().duration(250)
                 .style("stroke-width", "4")
+                .style("stroke", function(d) { return d3.rgb(fill(d)).darker(-0.6); })
                 .style("stroke-dasharray", "none");
         }
     }
@@ -806,6 +786,7 @@ function setElementSelected(element, selected, setData) {
         // Deselect
         element
             .transition().duration(250)
+            .style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.7); })
             .style("stroke-width", "2")
             .style("stroke-dasharray", "none");
     }
@@ -887,16 +868,12 @@ function addControlEventHandlers() {
     $(".remove-button").click(function() {
         setItemOpen(selectedItem, false);
 
-        // TODO: Fix this. the node isn't removing properly.
         // TODO: Remove links
 
         var ni;
-        if ((ni = indexOfNode(selectedItem)) != -1) {
-            // console.log(nodeSet.length, 'nodes');
-            var d = nodeSet.splice(ni, 1)[0];
-            // console.log(nodeSet.length, 'nodes');
-            // console.log("removed index", ni, d.id);
-            // d3.select(d.id);
+        if ((ni = indexOfItem(selectedItem)) != -1) {
+            nodeSet.splice(ni, 1);
+            selectedItem = null;
             restart();
         }
     });
@@ -934,7 +911,7 @@ function guid() {
 }
 
 function radius(d) {
-    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([44,90]);
+    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([44,80]);
     var TARGET_RADIUS_MAX = screenWidthScale(Math.min(1280, w));
     var TARGET_RADIUS_MIN = TARGET_RADIUS_MAX / 2;
 
@@ -1091,21 +1068,6 @@ Template.teamAreaZone.rendered = function ()
     };
 
       /*
-      var defaultGravity = 0.08;
-
-      var width = 500,
-        height = 500;
-
-      var force = d3.layout.force()
-        .gravity(defaultGravity)
-        .distance(0)
-        .charge(-46)
-        .size([width, height])
-        .start();
-
-      var imgSize = 44;
-
-
       // Draw a circle for each activity
       var updateCircles = function (group)
       {
