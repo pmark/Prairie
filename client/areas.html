@@ -17,7 +17,6 @@
 
 <body>
   {{> page}}
-
 </body>
 
 <template name="page">
@@ -35,14 +34,6 @@
       <button class="remove-button"><i class="icon-remove"></i></button>
     </div>
   </div>
-
-  {{#if showCreateDialog}}
-    {{> createDialog}}
-  {{/if}}
-
-  {{#if showInviteDialog}}
-    {{> inviteDialog}}
-  {{/if}}
 
   <div class="container for-chart">
     <div class="row">
@@ -76,143 +67,4 @@
   }
 </script>
 
-</template>
-
-<template name="pageOriginal">
-  {{#if showCreateDialog}}
-    {{> createDialog}}
-  {{/if}}
-
-  {{#if showInviteDialog}}
-    {{> inviteDialog}}
-  {{/if}}
-
-  <div class="container">
-    <div class="row">
-      <div class="span1"> </div>
-
-      <div class="span10">
-        <div class="header row">
-          <div class="span5">
-            <h3 style="margin-bottom: 0px">Client Team</h3>
-          </div>
-          <div class="span5">
-            <div style="float: right">
-              {{loginButtons align="right"}}
-            </div>
-          </div>
-        </div>
-
-        <div class="row">
-          <div class="span10">
-            {{> teamAreaZone}}
-            {{#if currentUser}}
-            <div class="pagination-centered">
-              <em><small>Tap an area to focus on it.</small></em>
-            </div>
-            {{/if}}
-            {{> details}}
-          </div>
-        </div>
-      </div>
-
-      <div class="span1"> </div>
-    </div>
-  </div>
-</template>
-
-<template name="teamAreaZone">
-  <div class="team-area-zone">
-    {{#constant}}
-    <div id="chart"></div>
-    {{/constant}}
-  </div>
-</template>
-
-<template name="details">
-  <div class="details">
-    {{#if area}}
-      {{#with area}}
-        <h1>{{name}}</h1>
-
-        <div class="description">{{description}}</div>
-
-        <span class="label label-inverse" style="margin-right:10px;">Priority</span>
-        {{#constant}}      
-        <input id="slider-details" type="text" class="span2" value="{{priorityPct}}" data-slider-min="0" data-slider-max="100" data-slider-step="1" data-slider-value="" data-slider-orientation="horizontal" data-slider-selection="before" data-slider-tooltip="hide">
-        {{/constant}}
-        <span class="label" style="margin-left:10px;">{{priorityPct}}</span>
-
-        <br/>
-        <br/>
-        {{> attendance}}
-
-        <br/>
-
-        {{#if canRemove}}
-          <button type="button" class="remove btn btn-danger"><i class="icon icon-large icon-remove-sign"></i></button>
-        {{/if}}
-
-        {{#if hasLink}}
-          <button type="button" class="view btn btn-link">Details</button>
-        {{/if}}
-
-      {{/with}}
-    {{else}}
-      <h1 class="muted pagination-centered">
-        {{#unless true}}
-          Please sign in.
-        {{else}}
-          {{#if anyAreas}}
-            Click an area of focus to select it, or double click to join
-          {{else}}
-            Double click to add an area of focus.
-          {{/if}}
-        {{/unless}}
-      </h1>
-    {{/if}}
-  </div>
-</template>
-
-<template name="attendance">
-  {{#unless nobody}}
-  <div class="attendance well well-small">
-    <div>
-      <span class="label label-success">{{focuserName}}</span>
-    </div>
-  </div>
-  {{/unless}}
-</template>
-
-<template name="createDialog">
-  <div class="mask"> </div>
-  <div class="modal">
-    <div class="modal-header">
-      <button type="button" class="close cancel">&times;</button>
-      <h3>New area of focus</h3>
-    </div>
-
-    <div class="modal-body">
-      {{#if error}}
-        <div class="alert alert-error">{{error}}</div>
-      {{/if}}
-
-      <label>Description</label>
-      <textarea class="description span5"></textarea>
-
-      <label>Epic URL</label>
-      <input type="text" class="link span5">
-
-<!--       <br/>
-      <br/>
-      <label style="margin-right:20px;">Priority</label>
-      <input id="slider-create" type="text" class="span2" value="" data-slider-min="0" data-slider-max="100" data-slider-step="1" data-slider-value="" data-slider-orientation="horizontal" data-slider-selection="before" data-slider-tooltip="show">
- -->
-    </div>
-
-    <div class="modal-footer">
-      <a href="#" class="btn cancel">Cancel</a>
-      <a href="#" class="btn btn-primary save">Add</a>
-    </div>
-  </div>
 </template>
