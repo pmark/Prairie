@@ -14,7 +14,7 @@
     link: String
     focusers: Array of objects like {user:userId, focus:[0-1]}
 */
-Activities = new Meteor.Collection("activities");
+Activities = new Meteor.Collection("activities", {idGeneration:'MONGO'});
 
 Activities.allow({
   insert: function (userId, activity) {
@@ -49,11 +49,11 @@ var attending = function (activity) {
 Meteor.methods({
   // options should include: description, title, team
 
-  saveActivity: function (options) 
+  saveActivity: function(options) 
   {
     options = options || {};
-    if (! (typeof options.title === "string" && options.title.length &&
-           typeof options.description === "string" && options.description.length))
+    if (! (typeof options.title === "string" && options.title.length))// &&
+           // typeof options.description === "string" && options.description.length))
            // typeof options.team === "number" && options.team >= 0))
       throw new Meteor.Error(400, "Required parameter missing");
 
@@ -73,10 +73,16 @@ Meteor.methods({
     };
 
     if (options.scratch) {
+      // console.log("!!!saveActivity:insert", options._id);
+      if (options._id) {
+          activityData._id = options._id;
+      }
+
       Activities.insert(activityData);
     }
     else {
-      Activities.update(options.id, {$set: activityData});
+      // console.log("!!!saveActivity:update");
+      Activities.update(options._id, {$set: activityData});
     }
   },
 

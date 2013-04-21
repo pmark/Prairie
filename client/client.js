@@ -1,108 +1,60 @@
 // Prairie -- client
 
 var $chart = null,
-w = null,
-h = null,
-svg = null,
-nodeSet = null,
-linkSet = null,
-node = null,
-link = null,
-color = null,
-force = null,
-tooltip = null,
-editBox = null,
-deleteButton = null,
-titleField = null,
-descriptionField = null,
-prioritySlider = null,
-selectedItem = null,
-modalOpen = false,
-mobile = null,
-activitiesSubscription = null;
+    w = null,
+    h = null,
+    svg = null,
+    nodeSet = null,
+    linkSet = null,
+    node = null,
+    link = null,
+    color = null,
+    force = null,
+    tooltip = null,
+    editBox = null,
+    deleteButton = null,
+    titleField = null,
+    descriptionField = null,
+    prioritySlider = null,
+    selectedItem = null,
+    modalOpen = false,
+    mobile = null,
+    activitiesSubscription = null;
 
-function updateIfSet(fieldSet, fieldName, value) {
-    if (typeof(value) !== "undefined") {
-        fieldSet[fieldName] = value;
-    }
-}
-
-function addActivity(fields) {
-    var angle = (Math.PI * 2 / nodeSet.length) * nodeSet.length;
-    var distance = radius({priority:100}) * 2;
-
-    fields.id = "activity-" + fields._id;
-    fields.type = "activity";
-    fields.x = w/2 + Math.cos(angle) * distance;
-    fields.y = h/2 + Math.sin(angle) * distance;
-    fields.attractor = {x:w/2, y:h/2};
-
-    nodeSet.push(fields);
-    console.log("Added", fields);
-}
-
-function activityElementId(activityItemId) {
-    return "activity-" + activityItemId;
-}
-
-function updateActivity(activityId, fields) {
-    console.log("---------updateActivity", activityId, fields);
-    var elementId = activityElementId(activityId);
-    var activityItem = findNodeById(elementId);
-
-    for (var key in fields) {
-        activityItem[key] = fields[key];
-    }    
-
-    var d3Element = d3.select("#" + elementId);
-    d3Element.select("text").text(activityItem.title);
-
-    // console.log("updating", elementId, d3Element.select(".node"));
-
-    var fillColor = fill(activityItem);
-
-    d3.select("#" + elementId + " circle").transition().duration(500)
-        .attr("r", radius)
-        .style("fill", fillColor)
-        .style("stroke", function(d) { return d3.rgb(fillColor).darker(0.7); });
-}
-
-Meteor.subscribe("directory", function() {
-    console.log("directory ready");
-    addPeople();
-    restart();
-});
 
 activitiesSubscription = Meteor.subscribe("activities", function() {
-    console.log("activities ready");
-
     var cursor = Activities.find({});
 
     var handle = cursor.observeChanges({
+        // _suppress_initial: true,
+
         added: function(id, fields) {
-            console.log("added", id);
-            fields._id = id;
-            addActivity(fields);
+            // console.log("***added", id, fields);
+
+            if ($("#" + activityElementIdForItemId(id)).length > 0) {
+                updateActivity(id, fields);
+            }
+            else {
+                fields._id = id;
+                addActivity(fields);
+            }
+
             restart();
         },
         changed: function(id, fields) {
-            console.log("changed", id);
-            fields._id = id;
+            // console.log("***changed", id, fields);
             updateActivity(id, fields);
             restart();
         },
         removed: function(id) {
-            console.log("todo: removed", id);
+            console.log("***removed", id);
         }
     });
+});
 
-    // var activityItems = cursor.fetch();
-
-    // for (var i in activityItems) {
-    //     addActivity(activityItems[i]);
-    // }
-
-    // restart();
+Meteor.subscribe("directory", function() {
+    addPeople();
+    restart();
 });
 
 // If no activity selected, select one.
@@ -165,6 +117,56 @@ Meteor.startup(function ()
     });
 
 });
+
+/////////////////////////////////
+
+function newObjectId() {
+    return (new Meteor.Collection.ObjectID()._str);
+}
+
+function activityElementIdForItemId(activityItemId) {
+    activityItemId = activityItemId || newObjectId();
+    return "activity-" + activityItemId;
+}
+
+function updateActivity(activityId, fields) {
+    var elementId = activityElementIdForItemId(activityId);
+    var activityItem = findNodeById(elementId);
+
+    for (var key in fields) {
+        activityItem[key] = fields[key];
+    }
+
+    d3.select("#" + elementId + " text").text(activityItem.title);
+
+    var fillColor = fill(activityItem);
+
+    d3.select("#" + elementId + " circle").transition().duration(500)
+        .attr("r", radius)
+        .style("fill", fillColor)
+        .style("stroke", function(d) { return d3.rgb(fillColor).darker(0.7); });
+}
+
+function addActivity(fields) {
+    var angle = (Math.PI * 2 / nodeSet.length) * nodeSet.length;
+    var distance = radius({priority:100}) * 2;
+
+    fields.id = activityElementIdForItemId(fields._id);
+
+    if ($("#" + fields.id)[0] != null) {
+        return;
+    }
+
+    fields.type = "activity";
+    fields.x = w/2 + Math.cos(angle) * distance;
+    fields.y = h/2 + Math.sin(angle) * distance;
+    fields.attractor = {x:w/2, y:h/2};
+
+    nodeSet.push(fields);
+}
+
+/////////////////////////////////
+
 
 function useTheForce() {
     // Set up D3 force layout.
@@ -475,34 +477,34 @@ function setItemOpen(d, open) {
         d3.selectAll(".link").transition().duration(500).style("opacity", "1.0");
 
         d3Element.select("circle")
-        .transition().duration(500)
-        .attr("r", radius(d));
+            .transition().duration(500)
+            .attr("r", radius(d));
 
         $(".edit-box").hide();
         modalOpen = false;
     }
     else {
         // open
-        // setElementHidden(allOtherElements(d3Element), true, 250);
+        setElementHidden(allOtherElements(d3Element), true, 250);
 
         modalOpen = true;
         d.open = true;
         d3Element.attr("data-open", "1");
-
         d3Element.select("text").transition().duration(500).style("opacity", "0.0");
-        d3.selectAll(".link").transition().duration(500).style("opacity", "0.1");
+        d3.selectAll(".link").transition().duration(500).style("opacity", "0.0");
 
         d3Element.select("circle")
-        .transition().duration(500)
-        .attr("r", Math.min(w, h)*0.45)
-        .each("end", function() {
-            $("#activity-title").val(d.title);
-            $("#activity-description").val(d.description);
-            $("#activity-priority").text(d.priority);
-            $("#priority-slider").slider("setValue", d.priority);
-            $(".edit-box").fadeIn(250);
-            $("#activity-title").focus();
-        });
+            .transition().duration(500)
+            .attr("r", Math.min(w, h)*0.45)
+            .each("end", function() {
+                $("#activity-title").val(d.title);
+                $("#activity-description").val(d.description);
+                $("#activity-priority").text(d.priority);
+                $("#priority-slider").slider("setValue", d.priority);
+                $("#priority-slider").val(d.priority);
+                $(".edit-box").fadeIn(250);
+                $("#activity-title").focus();
+            });
     }
 
     restart();
@@ -780,6 +782,17 @@ function flashElement(element) {
     });
 }
 
+function saveActivityCallback(error, activityId) {
+    if (error) {
+        alert("Error: " + error.reason + " " + error.details);
+    }
+    else {
+        delete(selectedItem.scratch);
+        setItemOpen(selectedItem, false);
+        selectedItem = null;
+    }
+}
+
 function addControlEventHandlers() {
 
     svg.on("dblclick", function() {
@@ -792,9 +805,12 @@ function addControlEventHandlers() {
 
         var p1 = d3.event;
 
+        var _id = newObjectId();
+
         var newNode = {
             scratch:true,
-            id: "activity-" + nodeSet.length,
+            id: activityElementIdForItemId(_id),
+            _id: _id,
             type: "activity",
             priority:50,
             title:greekLetter(nodeSet.length),
@@ -839,19 +855,14 @@ function addControlEventHandlers() {
     });
 
     $(".ok-button").click(function() {
-    console.log("SAVE:", selectedItem.id);
+        selectedItem.title = $("#activity-title").val();
+        selectedItem.priority = $("#priority-slider").val();
+        selectedItem.description = $("#activity-description").val();
 
-    var originalElementId = selectedItem.id;
-
-    selectedItem.title = $("#activity-title").val();
-    selectedItem.priority = $("#priority-slider").val();
-    selectedItem.description = $("#activity-description").val();
-
-    if (true || selectedItem.scratch) {
-
+        selectedItem._id = selectedItem._id || newObjectId();
 
         var activityItem = {
-            id: selectedItem._id,
+            _id: selectedItem._id,
             scratch: selectedItem.scratch,
             title: selectedItem.title,
             description: selectedItem.description,
@@ -859,54 +870,21 @@ function addControlEventHandlers() {
             team: 1
         };
 
-        console.log("ABOUT TO SAVE:", activityItem);
-
-
-        Meteor.call('saveActivity', activityItem, 
-        function (error, activityId) {
-            if (error) {
-                alert("Error: " + error.reason + " " + error.details);
-            }
-            else {
-                setItemOpen(selectedItem, false);
-                selectedItem = null;
-                return;
-
-
-
-                activityId = activityId || selectedItem._id;
-                console.log("DID SAVE:", activityId, "::::::", selectedItem);
-                var $element;
-
-                if (selectedItem.scratch) {
-                    newElementId = "activity-" + activityId;
-                    console.log("changing scratch id from ", originalElementId, "to", newElementId);
-                    $element = $("#" + originalElementId);
-                    $element.attr("id", newElementId);
-                    selectedItem.id = newElementId;
-                    delete(selectedItem.scratch);
-                }
-                else {
-                    $element = $("#" + originalElementId);
-                }
-
-                setItemOpen(selectedItem, false);
-                $element.attr("data-selected", "0");
-                selectedItem = null;
-            }
-        });
-    }
-    else {
-            // Updating an exiting activity
-
-            console.log("TODO: update")
-            setItemOpen(selectedItem, false);
-            selectedItem = null;
-        }
-
-    }); // end ok-button click
+        Meteor.call('saveActivity', activityItem, saveActivityCallback); 
+    });
 
 } // end addControlEventHandlers
+
+function s4() {
+  return Math.floor((1 + Math.random()) * 0x10000)
+             .toString(16)
+             .substring(1);
+};
+
+function guid() {
+  return s4() + s4() + '-' + s4() + '-' + s4() + '-' +
+         s4() + '-' + s4() + s4() + s4();
+}
 
 function radius(d) {
     var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([44,100]);
