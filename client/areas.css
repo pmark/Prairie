@@ -152,6 +152,7 @@ div.tooltip {
 .edit-box #target-title,
 .edit-box textarea,
 .edit-box .button-box {
+    font-family: 'Roboto', sans-serif;
     display:block;
     margin:10px auto;
 }
@@ -204,8 +205,7 @@ div.tooltip {
 
 .node text {
     fill: rgba(0,0,0,0.75);
-    font-size:12px;
+    font-size:14px;
     text-shadow: 0 1px rgba(255,255,255,0.4);
-    font-family: 'Fondamento', cursive;
     font-family: 'Roboto', sans-serif;
 }

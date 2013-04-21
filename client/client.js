@@ -172,13 +172,28 @@ function addActivity(fields) {
 /////////////////////////////////
 
 
+function tricolor(priority) {
+    var c = [d3.rgb(5,175,220), "#FF9911", "#FF2300"];
+
+    var i = 0;
+    if (priority > 33) {
+        i = 1;
+
+        if (priority > 66) {
+            i = 2;
+        }
+    }
+
+    return c[i];
+}
+
 function useTheForce() {
     // Set up D3 force layout.
 
-    color = d3.scale.linear()
-        .domain([0, 50, 100])
-        .range([d3.rgb(5,175,220), d3.rgb(255,175,0), "#FF2300"]);
-        // .range(["gold", "orange", "red"]);
+    // color = d3.scale.linear()
+    //     .domain([0, 50, 100])
+    //     .range([d3.rgb(5,175,220), d3.rgb(255,175,0), "#FF2300"]);
+    //     // .range(["gold", "orange", "red"]);
 
     var gravityScale = d3.scale.linear().domain([320,1280]).range([0.45, 0.01]);
 
@@ -790,7 +805,7 @@ function setElementSelected(element, selected, setData) {
             element
                 .transition().duration(250)
                 .style("stroke-width", "4")
-                .style("stroke", function(d) { return d3.rgb(fill(d)).darker(-0.6); })
+                .style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.8); })
                 .style("stroke-dasharray", "none");
         }
     }
@@ -798,7 +813,7 @@ function setElementSelected(element, selected, setData) {
         // Deselect
         element
             .transition().duration(250)
-            .style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.7); })
+            .style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.5); })
             .style("stroke-width", "2")
             .style("stroke-dasharray", "none");
     }
@@ -942,7 +957,7 @@ function fill(d) {
     if (d.priority == null) {
         return d3.rgb(250, 250, 250);
     }
-    return color(d.priority);
+    return tricolor(d.priority);
 }
 
 var GREEK_LETTERS = ["α","β","γ","δ","ε","ζ","η","θ","ι","κ","λ","μ","ν","ξ","ο","π","ρ","ς","σ","τ","υ","φ","χ","ψ","ω"];
