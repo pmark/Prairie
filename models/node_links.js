@@ -18,19 +18,16 @@ NodeLinks.allow({
 Meteor.methods({
 
 	createLink: function(link) {
-	    
 	    var newLink = {
 	    	_id: link._id,
 	    	source: {id: link.source.id},
 			target: {id: link.target.id}
 	    };
 
-		console.log("!!! !!! inserting link", newLink);
 		NodeLinks.insert(newLink);
 	},
 
 	removeLink: function(linkId) {
-		console.log("!!!removeLink", linkId);
 		NodeLinks.remove(linkId);
 	},
 

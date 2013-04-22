@@ -53,7 +53,7 @@ activitiesSubscription = Meteor.subscribe("activities", function() {
             restart();
         },
         removed: function(id) {
-            console.log("***removed", id);
+            // console.log("***removed", id);
 
             var ni;
             if ((ni = indexOfActivityItem({_id:id})) != -1) {
@@ -80,13 +80,7 @@ function nodeLinksSubscriptionReady() {
     var handle = cursor.observeChanges({
 
         added: function(id, fields) {
-            console.log("***added link:", id, fields);
-
-            // if (!fields.source || fields.target) {
-            //     console.log("\n\nBAD LINK, FETCHING...\n");
-            //     fields = NodeLinks.find({_id:id}).fetch()[0];
-            //     console.log("\n\nLINK:\n", fields.source, "\ntarg:\n", fields.target);
-            // }
+            // console.log("***added link:", id, fields);
 
             if ($("#" + nodeLinkElementIdForItemId(id)).length == 0) {
                 fields._id = id;
@@ -101,11 +95,11 @@ function nodeLinksSubscriptionReady() {
         },
 
         removed: function(id) {
-            console.log("***removed link", id);
+            // console.log("***should remove link", id);
 
-            var ni;
-            if ((ni = indexOfNodeLinkItem({_id:id})) != -1) {
-                linkSet.splice(ni, 1);
+            var li;
+            if ((li = indexOfNodeLinkItem({_id:id})) != -1) {
+                linkSet.splice(li, 1);
                 restart();
             }
         }
@@ -233,13 +227,21 @@ function addActivity(fields) {
 
 function addNodeLink(fields) {
 
-    // fields.id = nodeLinkElementIdForItemId(fields._id);
-    console.log("addNodeLink", fields);
-
     if ($("#" + fields.id)[0] != null) {
         return;
     }
 
+    if (!fields.source) {
+        console.log("link", fields._id, "is missing a source");
+        return;
+    }
+
+    if (!fields.target) {
+        console.log("link", fields._id, "is missing a target");
+        return;
+    }
+
+    // console.log(linkSet.length, "addNodeLink", fields._id);
     linkSet.push(fields);
 }
 
@@ -511,6 +513,7 @@ function indexOfActivityItem(item) {
     nodeSet.forEach(function(n, i) {
         if (n._id === item._id) {
             index = i;
+            return;
         }
     });
 
@@ -523,6 +526,7 @@ function indexOfNodeLinkItem(item) {
     linkSet.forEach(function(n, i) {
         if (n._id === item._id) {
             index = i;
+            return;
         }
     });
 
@@ -642,16 +646,15 @@ function toggleLink(source, target) {
             }
         });
 
-        linkSet.push(nodeLink);
+        // console.log(linkSet.length, "adding", nodeLink._id);
+        // linkSet.push(nodeLink);
     }
     else {
         // Remove the link
 
-        nodeLink = linkSet.splice(li, 1)[0];
+        // console.log("link to remove at index", li, linkSet[li]._id);
 
-        console.log("link to remove at index", li, nodeLink);
-
-        Meteor.call("removeLink", nodeLink._id, function(error) {
+        Meteor.call("removeLink", linkSet[li]._id, function(error) {
             if (error) {
                 alert("Error: " + error.reason + " " + error.details);
             }
