@@ -206,6 +206,6 @@ div.tooltip {
 .node text {
     fill: rgba(0,0,0,0.75);
     font-size:14px;
-    text-shadow: 0 1px rgba(255,255,255,0.4);
+    text-shadow: 0 f1px rgba(255,255,255,0.4);
     font-family: 'Roboto', sans-serif;
 }

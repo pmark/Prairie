@@ -19,32 +19,19 @@ Activities = new Meteor.Collection("activities", {idGeneration:'MONGO'});
 Activities.allow({
   insert: function (userId, activity) {
     console.log("----------Activities.allow: insert", activity);
-    return false; // no cowboy inserts -- use createActivity method
+    return false;
   },
   
   update: function (userId, activity, fields, modifier) {
     console.log("----------Activities.allow: update", activity);
-
-    // var allowed = ["title", "description", "link", "priority"];
-    // if (_.difference(fields, allowed).length)
-    //   return false; // tried to write to forbidden field
-
-    // A good improvement would be to validate the type of the new
-    // value of the field (and if a string, the length.) In the
-    // future Meteor will have a schema system to makes that easier.
     return false;
   },
   
   remove: function (userId, activity) {
-    // You can only remove activities that you created and nobody is going to.
     return false;
   }
 });
 
-var attending = function (activity) {
-  return (activity.focusers || []).length;
-  // return (_.groupBy(activity.focusers, 'rsvp').yes || []).length;
-};
 
 Meteor.methods({
   // options should include: description, title, team
@@ -90,7 +77,7 @@ Meteor.methods({
     Activities.remove(activityId); 
   },
 
-  removeAll: function() {
+  removeAllActivities: function() {
 
     // TODO: disable this in prod!
 
@@ -98,7 +85,6 @@ Meteor.methods({
       console.log("remove", i);
       Activities.remove(i._id); 
     });
-    // Activities.remove({});
   },
 
   changePriority: function (activityId, newPriority)

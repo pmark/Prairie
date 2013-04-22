@@ -20,13 +20,15 @@ var $chart = null,
     modalOpen = false,
     mobile = null,
     dragging = false,
+    nodeLinksSubscription = null,
     activitiesSubscription = null,
     clickTimer = null,
     touchDown = false,
-    CLICK_TIMEOUT_MS = 120;
+    CLICK_TIMEOUT_MS = 140;
 
 
 activitiesSubscription = Meteor.subscribe("activities", function() {
+    
     var cursor = Activities.find({});
 
     var handle = cursor.observeChanges({
@@ -54,18 +56,61 @@ activitiesSubscription = Meteor.subscribe("activities", function() {
             console.log("***removed", id);
 
             var ni;
-            if ((ni = indexOfItem({_id:id})) != -1) {
+            if ((ni = indexOfActivityItem({_id:id})) != -1) {
                 nodeSet.splice(ni, 1);
                 restart();
             }
         }
     });
-});
 
-Meteor.subscribe("directory", function() {
+
+    Meteor.subscribe("directory", directorySubscriptionReady);
+
+});    
+
+function directorySubscriptionReady() {
     addPeople();
     restart();
-});
+    nodeLinksSubscription = Meteor.subscribe("node_links", nodeLinksSubscriptionReady);    
+};
+
+function nodeLinksSubscriptionReady() {
+    var cursor = NodeLinks.find({});
+
+    var handle = cursor.observeChanges({
+
+        added: function(id, fields) {
+            console.log("***added link:", id, fields);
+
+            // if (!fields.source || fields.target) {
+            //     console.log("\n\nBAD LINK, FETCHING...\n");
+            //     fields = NodeLinks.find({_id:id}).fetch()[0];
+            //     console.log("\n\nLINK:\n", fields.source, "\ntarg:\n", fields.target);
+            // }
+
+            if ($("#" + nodeLinkElementIdForItemId(id)).length == 0) {
+                fields._id = id;
+
+                fields.source = findNodeById(fields.source.id);
+                fields.target = findNodeById(fields.target.id);
+
+                addNodeLink(fields);
+            }
+
+            restart();
+        },
+
+        removed: function(id) {
+            console.log("***removed link", id);
+
+            var ni;
+            if ((ni = indexOfNodeLinkItem({_id:id})) != -1) {
+                linkSet.splice(ni, 1);
+                restart();
+            }
+        }
+    });
+}
 
 // If no activity selected, select one.
 Meteor.startup(function () 
@@ -139,6 +184,11 @@ function activityElementIdForItemId(activityItemId) {
     return "activity-" + activityItemId;
 }
 
+function nodeLinkElementIdForItemId(nodeLinkId) {
+    nodeLinkId = nodeLinkId || newObjectId();
+    return "link-" + nodeLinkId;
+}
+
 function updateActivity(activityId, fields) {
     var elementId = activityElementIdForItemId(activityId);
     var activityItem = findNodeById(elementId);
@@ -181,6 +231,19 @@ function addActivity(fields) {
 
 /////////////////////////////////
 
+function addNodeLink(fields) {
+
+    // fields.id = nodeLinkElementIdForItemId(fields._id);
+    console.log("addNodeLink", fields);
+
+    if ($("#" + fields.id)[0] != null) {
+        return;
+    }
+
+    linkSet.push(fields);
+}
+
+/////////////////////////////////
 
 function tricolor(priority) {
     var c = [d3.rgb(5,175,220), "#FF9911", "#FF2300"];
@@ -209,16 +272,16 @@ function useTheForce() {
 
     force = d3.layout.force()
         .gravity(gravityScale(Math.min(1280, w)))  // default 0.1
-        .charge(-1500)  // default -30
-        .linkStrength(0.07) // default 1
+        .charge(-1700)  // default -30
+        .linkStrength(0.068) // default 1
         .size([w, h]);
 
         var NODE_TYPE_CHART_CENTER = 0,
         NODE_TYPE_TARGET_CENTER = 1;
 
         svg = d3.select("#chart").append("svg:svg")
-        .attr("width", w)
-        .attr("height", h);
+            .attr("width", w)
+            .attr("height", h);
 
         nodeSet = force.nodes();
         linkSet = force.links();
@@ -226,28 +289,9 @@ function useTheForce() {
         node = svg.selectAll(".node"),
         link = svg.selectAll(".link");
 
-        tooltip = d3.select("body").append("div")   
-        .attr("class", "tooltip")               
-        .style("opacity", 0);
-
-    // editBox = d3.select("body").append("div")
-    //     .attr("class", "edit-box")
-    //     .style("opacity", 0);
-
-    // titleField = editBox.append("input")
-    //     .attr("type", "text")
-    //     .attr("id", "title-field")
-    //     .style("opacity", 0);
-
-    // prioritySlider = editBox.append("div")
-    //     .attr("id", "priority-slider")
-    //     .style("opacity", 0);
-
-    // deleteButton = d3.select("body").append("div")   
-    //     .attr("class", "delete-button")
-    //     .style("opacity", 0);
-
-    // deleteButton.append("i").attr("class", "icon-remove");
+        // tooltip = d3.select("body").append("div")   
+        //     .attr("class", "tooltip")               
+        //     .style("opacity", 0);
 
     force.on("tick", function(e) {
 
@@ -290,10 +334,10 @@ function restart() {
     link
         .enter()
         .insert("line", ".node")
-        .attr("id", linkId)
+        .attr("id", function(d) { return d._id; })
         .attr("class", "link")
         .style("stroke-dasharray", "9 3 1 3")
-        .style("stroke-linecap", "round")
+        // .style("stroke-linecap", "round")
         .attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
         .attr("x2", function(d) { return d.target.x; })
@@ -430,6 +474,7 @@ function addPeople() {
 
     for (var i=0; i < totalPersonCount; i++) {
         var newNode = {
+            _id: i,
             id: "person-" + i,
             type: "person",
             title:"Joe",
@@ -460,10 +505,22 @@ function findNodeById(nodeId) {
     return null;
 }
 
-function indexOfItem(item) {
+function indexOfActivityItem(item) {
     var index = -1;
 
     nodeSet.forEach(function(n, i) {
+        if (n._id === item._id) {
+            index = i;
+        }
+    });
+
+    return index;
+}
+
+function indexOfNodeLinkItem(item) {
+    var index = -1;
+
+    linkSet.forEach(function(n, i) {
         if (n._id === item._id) {
             index = i;
         }
@@ -476,11 +533,13 @@ function indexOfLink(link) {
     var index = -1;
 
     linkSet.forEach(function(l, i) {
+        // Compare "id" which is a DOM element ID that includes the element type and record ID.
+
         if ((link.source.id == l.source.id && link.target.id == l.target.id) ||
             (link.target.id == l.source.id && link.source.id == l.target.id)) {
             index = i;
-    }
-})
+        }
+    });
 
     return index;
 }
@@ -561,6 +620,47 @@ function timestamp() {
     return (new Date().getTime());
 }
 
+function toggleLink(source, target) {
+    
+    var nodeLink = {
+        source:source,
+        target:target
+    };
+
+    var li = indexOfLink(nodeLink)
+
+    if (li == -1) {
+        // Add a new link
+
+        flashElement(d3.select("#"+target.id));
+
+        nodeLink._id = newObjectId();
+
+        Meteor.call("createLink", nodeLink, function(error) {
+            if (error) {
+                alert("Error: " + error.reason + " " + error.details);
+            }
+        });
+
+        linkSet.push(nodeLink);
+    }
+    else {
+        // Remove the link
+
+        nodeLink = linkSet.splice(li, 1)[0];
+
+        console.log("link to remove at index", li, nodeLink);
+
+        Meteor.call("removeLink", nodeLink._id, function(error) {
+            if (error) {
+                alert("Error: " + error.reason + " " + error.details);
+            }
+        });
+    }
+
+    restart();
+}
+
 function itemWasClicked(d) {
 
     if (modalOpen) {
@@ -613,27 +713,8 @@ function itemWasClicked(d) {
 
                 if (oldSelectedItem) {
                     if (oldSelectedItem.type !== newSelectedItem.type) {
-                        // Connect this item to other if it's a different type
-
-                        var newLink = {
-                            source:newSelectedItem,
-                            target:oldSelectedItem
-                        };
-
-                        var li = indexOfLink(newLink)
-
-                        if (li == -1) {
-                            // Add a new link
-                            linkSet.push(newLink);
-                            flashElement(d3Element);
-                        }
-                        else {
-                            // Remove the link
-                            linkSet.splice(li, 1);
-                        }
-
+                        toggleLink(oldSelectedItem, newSelectedItem);
                         selectedItem = null;
-                        restart();                    
                     }
                     else {
                         changeSelection = true;
