@@ -52,6 +52,12 @@ activitiesSubscription = Meteor.subscribe("activities", function() {
         },
         removed: function(id) {
             console.log("***removed", id);
+
+            var ni;
+            if ((ni = indexOfItem({_id:id})) != -1) {
+                nodeSet.splice(ni, 1);
+                restart();
+            }
         }
     });
 });
@@ -141,9 +147,13 @@ function updateActivity(activityId, fields) {
         activityItem[key] = fields[key];
     }
 
-    d3.select("#" + elementId + " text").text(activityItem.title);
-
     var fillColor = fill(activityItem);
+    var dc = d3.rgb(fillColor).darker(0.7);
+    var textShadow = "0 -1px rgba(" + dc.r + "," + dc.g + "," + dc.b + " ,1.0)";
+
+    d3.select("#" + elementId + " text")
+        .style("text-shadow", function(d) { return textShadow; })
+        .text(activityItem.title);
 
     d3.select("#" + elementId + " circle").transition().duration(500)
         .attr("r", radius)
@@ -378,8 +388,12 @@ function restart() {
     g.append("svg:text")
         .text(function(d) { return d.title; })
         .style("width", function(d) { return radius(d) * 1.8})
+        .style("text-shadow", function(d) { 
+            var dc = d3.rgb(fill(d)).darker(1.0);
+            return "0 1px rgb(" + dc.r + "," + dc.g + "," + dc.b + ")";
+        })
         .style("text-anchor", "middle")
-                .attr("x", 0) // function(d) { return -radius(d) * 0.9})
+        .attr("x", 0)
         .attr("y", 5);
 
     // node
@@ -450,7 +464,7 @@ function indexOfItem(item) {
     var index = -1;
 
     nodeSet.forEach(function(n, i) {
-        if (n.id === item.id) {
+        if (n._id === item._id) {
             index = i;
         }
     });
@@ -841,12 +855,12 @@ function flashElement(element) {
 
 function saveActivityCallback(error, activityId) {
     if (error) {
+        selectedItem = null;
         alert("Error: " + error.reason + " " + error.details);
     }
     else {
         delete(selectedItem.scratch);
         setItemOpen(selectedItem, false);
-        console.log("saveAC")
         selectedItem = null;
     }
 }
@@ -897,12 +911,16 @@ function addControlEventHandlers() {
 
         // TODO: Remove links
 
-        var ni;
-        if ((ni = indexOfItem(selectedItem)) != -1) {
-            nodeSet.splice(ni, 1);
-            selectedItem = null;
-            restart();
+        if (!selectedItem.scratch) {
+            Meteor.call("removeActivity", selectedItem._id, function(error) {
+                selectedItem = null;
+
+                if (error) {
+                    alert("Error: " + error.reason + " " + error.details);
+                }
+            });
         }
+
     });
 
     $(".ok-button").click(function() {

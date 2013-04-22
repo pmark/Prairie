@@ -86,7 +86,14 @@ Meteor.methods({
     }
   },
 
+  removeActivity: function(activityId) {
+    Activities.remove(activityId); 
+  },
+
   removeAll: function() {
+
+    // TODO: disable this in prod!
+
     Activities.find().forEach(function(i) { 
       console.log("remove", i);
       Activities.remove(i._id); 
