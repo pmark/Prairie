@@ -74,6 +74,12 @@ Meteor.methods({
   },
 
   removeActivity: function(activityId) {
+
+    var a = [];
+    var eid = "activity-" + activityId;
+
+    NodeLinks.remove({$or: [{"target.id":eid}, {"source.id":eid}]});
+
     Activities.remove(activityId); 
   },
 
