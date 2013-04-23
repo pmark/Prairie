@@ -30,10 +30,59 @@ transform Function
 Overrides transform on the  Collection for this cursor. Pass null to disable transformation.
 */
 
-Meteor.publish("directory", function () {
-	return Meteor.users.find({}, {
-		fields: {emails: 1, profile: 1}
-	});
+Meteor.methods({
+
+	refreshUserInfo: function(uid) {
+
+		if (!uid) {
+			console.log("refreshUserInfo error: no user ID given");
+			return;
+		}
+		
+		var u = Meteor.users.findOne(uid);
+
+		if (u && u.services) {
+			var minutesSinceLastRefresh = (u.profile ? minutesSince(u.profile.lastRefreshAt) : Infinity);
+
+			if (minutesSinceLastRefresh < 60) {
+				console.log("refreshUserInfo: already up to date");
+				return;
+			}
+
+			if (u.services.github) {
+
+				var res = Meteor.http.get("https://api.github.com/users/" + 
+					u.services.github.username).data;
+
+				if (res) {
+					url = res.avatar_url;
+
+					console.log("------------updating user with github info.");
+
+					u.profile = u.profile || {};
+					u.profile.name = res.name;
+					u.profile.initials = initials(res.name);
+					u.profile.iconURL = url;
+
+					Meteor.users.update(u._id, {
+						$set: {
+							"profile.iconURL": u.profile.iconURL,
+							"profile.name": u.profile.name,
+							"profile.initials": u.profile.initials,
+							"profile.lastRefreshAt": timestamp()
+						}
+					}, function(err, r) {
+						if (err) {
+							console.log("error refreshing user:", err);
+						}
+						else {
+							console.log("refreshed user:", u.profile);
+						}
+					});
+				}
+			}
+		}
+	}
 });
 
 Meteor.publish("activities", function () {
@@ -47,3 +96,17 @@ Meteor.publish("activities", function () {
 Meteor.publish("node_links", function () {
 	return NodeLinks.find({});
 });
+
+Meteor.publish("all_user_data", function () {
+	return Meteor.users.find({});
+	// return Meteor.users.find({}, {fields: {'nested.things': 1}});
+});
+
+////////////////////////////////////
+
+Accounts.onCreateUser(function(options, user) {
+    console.log("User was created", options, user);
+
+	return user;
+});
+

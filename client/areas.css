@@ -6,7 +6,9 @@
 
 body {
     background-color:#F5F1DE;
-    font-family:Helvetica;
+    font-family: 'Roboto', sans-serif;
+
+
     -webkit-user-select: none;
 }
 
@@ -27,7 +29,21 @@ html, body,
 }
 
 .header {
-    padding: 20px 0;
+    position:absolute;
+    color: rgba(0,0,0,0.2);
+    margin: -6px 0 0 6px;
+    padding: 0;
+}
+
+.header h3 {
+    font-size:14px;
+    margin:0 0 -5px 0;
+    padding:0;
+}
+
+.header>div.span5 {
+    padding:0;
+    margin:0 0 0 -1px;
 }
 
 .details {
@@ -208,4 +224,29 @@ div.tooltip {
     font-size:14px;
     text-shadow: 0 f1px rgba(255,255,255,0.4);
     font-family: 'Roboto', sans-serif;
+}
+
+.login-link-text {
+    font-size:12px;
+    text-decoration: none !important;
+    border:1px solid #DCD9C8;
+    border-radius: 4px;
+    padding:2px 3px;
+    color: rgba(0,0,0,0.2);
+}
+.login-link-text:hover {
+    color:#0088cc;
+    border:1px solid #0088cc;
+}
+
+.accounts-dialog {
+    background-color: #DCD9C8;
+    margin: -6px -12px 0 0px;
+}
+
+#login-buttons .login-close-text {
+    text-indent:-3000px;
+}
+
+#login-buttons .login-close-text:hover {
 }

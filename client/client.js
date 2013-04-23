@@ -31,7 +31,7 @@ activitiesSubscription = Meteor.subscribe("activities", function() {
     
     var cursor = Activities.find({});
 
-    var handle = cursor.observeChanges({
+    cursor.observeChanges({
         // _suppress_initial: true,
 
         added: function(id, fields) {
@@ -56,28 +56,66 @@ activitiesSubscription = Meteor.subscribe("activities", function() {
             // console.log("***removed", id);
 
             var ni;
-            if ((ni = indexOfActivityItem({_id:id})) != -1) {
+            if ((ni = indexOfNodeItem({_id:id})) != -1) {
                 nodeSet.splice(ni, 1);
                 restart();
             }
         }
     });
 
-
-    Meteor.subscribe("directory", directorySubscriptionReady);
+    Meteor.subscribe("all_user_data", directorySubscriptionReady);
 
 });    
 
 function directorySubscriptionReady() {
-    addPeople();
+    // addPeople();
     restart();
-    nodeLinksSubscription = Meteor.subscribe("node_links", nodeLinksSubscriptionReady);    
+    nodeLinksSubscription = Meteor.subscribe("node_links", nodeLinksSubscriptionReady);
+
+    var cursor = Meteor.users.find({});
+
+    cursor.observeChanges({
+        // _suppress_initial: true,
+
+        added: function(id, fields) {
+            var u = Meteor.users.findOne(id);
+            console.log("***added user", id, fields, u);
+            addPeople([u])
+            restart();
+        },
+        changed: function(id, fields) {
+            var u = Meteor.users.findOne(id);
+            console.log("***changed user", id, fields, u);
+            var personId = personElementIdForItemId(id);
+            var d3Element = d3.select("#" + personId);
+            var d = findNodeById(personId);
+
+            if (!d) {
+                console.log("Can't find", personId);
+                return;
+            }
+
+            d.title = u.profile ? u.profile.initials : "!!!";
+            d3Element.select("text").text(function(d) { return d.title; });
+
+        },
+        removed: function(id) {
+            console.log("***removed user", id);
+
+            var ni;
+            if ((ni = indexOfNodeItem({_id:id})) != -1) {
+                nodeSet.splice(ni, 1);
+                restart();
+            }
+        }
+    });
+
 };
 
 function nodeLinksSubscriptionReady() {
     var cursor = NodeLinks.find({});
 
-    var handle = cursor.observeChanges({
+    cursor.observeChanges({
 
         added: function(id, fields) {
             // console.log("***added link:", id, fields);
@@ -106,14 +144,23 @@ function nodeLinksSubscriptionReady() {
     });
 }
 
+
+
+var shouldRefreshUserInfo = false;
 // If no activity selected, select one.
 Meteor.startup(function () 
-{  
-    Deps.autorun(function () 
-    {
-        if (! Session.get("selected")) 
-        {
-            var activity = Activities.findOne();    
+{
+    Deps.autorun(function () {       
+
+        if (Meteor.userId() === null) {
+            console.log("Not logged in");
+        }
+        else {
+            console.log("User is logged in", Meteor.userId());
+
+            Meteor.call("refreshUserInfo", Meteor.userId(), function(err, result) {
+                console.log("------------------ refreshed user info", err, result);
+            });            
         }
     });
 
@@ -124,7 +171,6 @@ Meteor.startup(function ()
     }
 
     mobile = window.mobileCheck();
-
 
     $chart = $("#chart");
     w = $chart.width();
@@ -176,6 +222,11 @@ function newObjectId() {
 function activityElementIdForItemId(activityItemId) {
     activityItemId = activityItemId || newObjectId();
     return "activity-" + activityItemId;
+}
+
+function personElementIdForItemId(personItemId) {
+    personItemId = personItemId || newObjectId();
+    return "person-" + personItemId;
 }
 
 function nodeLinkElementIdForItemId(nodeLinkId) {
@@ -469,30 +520,41 @@ function linkId(d) {
     return "link-" + lower + "-" + upper;
 }
 
-function addPeople() {
 
-    var totalPersonCount = 6;
-    var personPadding = (h / totalPersonCount);
+function addPeople(userSet) {
 
-    for (var i=0; i < totalPersonCount; i++) {
-        var newNode = {
-            _id: i,
-            id: "person-" + i,
-            type: "person",
-            title:"Joe",
-            // x: w,
-            // y: (i * personPadding) + personPadding/2, 
-            attractor:{
-                x:w/2, 
-                y:h/2 
+    function pushUserNodes(result) {
+        // console.log("userNodes result:", result);
+        var totalPersonCount = result.length;
+        var personPadding = (h / totalPersonCount);
+
+        result.forEach(function(u,i) {
+
+            if ($("#person-" + u._id).length === 0) {
+                u.x = 160;
+                u.y = (i * personPadding) + personPadding/2;
+                u.attractor = {x:w/2, y:h/2 };
+
+                nodeSet.push(u);
             }
-        };
+        });
 
-        nodeSet.push(newNode);            
-    }
+        restart();
+    };
 
-    restart();
-};
+    Meteor.call("userNodes", userSet, function(err, result) {
+        if (err) {
+            console.log("userNodes err:", err);
+        }
+
+        if (!result) {
+            console.log("No users");
+            return;
+        }
+
+        pushUserNodes(result);
+    });
+}
 
 function findNodeById(nodeId) {
     for (var i in nodeSet) {
@@ -507,7 +569,7 @@ function findNodeById(nodeId) {
     return null;
 }
 
-function indexOfActivityItem(item) {
+function indexOfNodeItem(item) {
     var index = -1;
 
     nodeSet.forEach(function(n, i) {
@@ -618,10 +680,6 @@ function clearSelection(preserveSelectedItem) {
     if (!preserveSelectedItem) {
         selectedItem = null;
     }
-}
-
-function timestamp() {
-    return (new Date().getTime());
 }
 
 function toggleLink(source, target) {
@@ -1070,3 +1128,18 @@ function greekLetter(number)
   return GREEK_LETTERS[number];
 }
 
+
+/////////////////////////////
+
+Accounts.ui.config({
+    requestPermissions: {
+        // github: ['user', 'repo:status', 'public_repo']
+    },
+    requestOfflineToken: {
+        google: true
+    }
+});
+
+Template.page.rendered = function() {
+    $(".login-close-text").addClass("icon-remove");
+};
