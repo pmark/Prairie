@@ -20,9 +20,13 @@ initials = function(name, email) {
 		return null;
 	}
 
-	var parts = name.replace(/\W/, '').split(" ");
+	var parts = name.replace(/\W+/g, ' ').split(' ');
 	var a = [];
-	parts.map(function(p) { a.push(p[0].toUpperCase()); })
+
+	if (parts && parts.length > 0) {
+		parts.map(function(p) { a.push(p[0].toUpperCase()); })
+	}
+	
 	initials = a.join('');
 
 	if (!initials && email) {

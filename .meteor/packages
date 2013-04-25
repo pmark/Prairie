@@ -8,6 +8,6 @@ accounts-ui
 d3
 bootstrap
 email
-accounts-twitter
 accounts-github
 accounts-google
+accounts-twitter

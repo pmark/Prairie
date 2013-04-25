@@ -45,7 +45,6 @@ Meteor.methods({
 			var minutesSinceLastRefresh = (u.profile ? minutesSince(u.profile.lastRefreshAt) : Infinity);
 
 			if (minutesSinceLastRefresh < 60) {
-				console.log("refreshUserInfo: already up to date");
 				return;
 			}
 			else {

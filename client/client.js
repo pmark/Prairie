@@ -24,7 +24,9 @@ var $chart = null,
     activitiesSubscription = null,
     clickTimer = null,
     touchDown = false,
-    CLICK_TIMEOUT_MS = 140;
+    CLICK_TIMEOUT_MS = 140,
+    PERSON_NODE_RADIUS = 22,
+    PERSON_NODE_CLIP_RADIUS = 20;
 
 
 activitiesSubscription = Meteor.subscribe("activities", function() {
@@ -253,7 +255,7 @@ function updateActivity(activityId, fields) {
     d3.select("#" + elementId + " circle").transition().duration(500)
         .attr("r", radius)
         .style("fill", fillColor)
-        .style("stroke", function(d) { return d3.rgb(fillColor).darker(0.7); });
+        .style("stroke", function(d) { return d3.rgb(fillColor).darker(0.4); });
 }
 
 function addActivity(fields) {
@@ -288,7 +290,7 @@ function addNodeLink(fields) {
     }
 
     if (!fields.target) {
-        console.log("link", fields._id, "is missing a target");
+        console.log("link", fields._id, "is missing a target", fields);
         return;
     }
 
@@ -329,22 +331,38 @@ function useTheForce() {
         .linkStrength(0.068) // default 1
         .size([w, h]);
 
-        var NODE_TYPE_CHART_CENTER = 0,
+    var NODE_TYPE_CHART_CENTER = 0,
         NODE_TYPE_TARGET_CENTER = 1;
 
-        svg = d3.select("#chart").append("svg:svg")
-            .attr("width", w)
-            .attr("height", h);
+    svg = d3.select("#chart").append("svg:svg")
+        .attr("width", w)
+        .attr("height", h);
 
-        nodeSet = force.nodes();
-        linkSet = force.links();
+    var defs = svg.append("defs");
 
-        node = svg.selectAll(".node"),
-        link = svg.selectAll(".link");
 
-        // tooltip = d3.select("body").append("div")   
-        //     .attr("class", "tooltip")               
-        //     .style("opacity", 0);
+    defs.append("rect")
+        .attr("id", "rect")
+        .attr("x", -PERSON_NODE_CLIP_RADIUS)
+        .attr("y", -PERSON_NODE_CLIP_RADIUS)
+        .attr("width", PERSON_NODE_CLIP_RADIUS*2)
+        .attr("height", PERSON_NODE_CLIP_RADIUS*2)
+        .attr("rx", PERSON_NODE_CLIP_RADIUS);
+
+    defs.append("clipPath")
+        .attr("id", "clip")
+        .append("use")
+        .attr("xlink:href", "#rect")
+
+    nodeSet = force.nodes();
+    linkSet = force.links();
+
+    node = svg.selectAll(".node"),
+    link = svg.selectAll(".link");
+
+    // tooltip = d3.select("body").append("div")   
+    //     .attr("class", "tooltip")               
+    //     .style("opacity", 0);
 
     force.on("tick", function(e) {
 
@@ -417,16 +435,16 @@ function restart() {
     node.exit().transition().duration(450)
         .style("opacity", 0)
         .ease("circle")
-        .attr("transform", function(d) {
+        .style("transform", function(d) {
           return "translate(" + (Math.random()*(w*0.66) + (w*0.33)) + "," + 
             (Math.random() > 0.5 ? -100 : h+100) + ")"; 
         })        
         .remove();
 
-    var g = node.enter()
-        .append("svg:g")
+    // var nodeDiv = node.enter().append("div")
+    var g = node.enter().append("svg:g")
         .attr("class", function(d) { return "node " + d.type; })
-        .attr("type", function (d) { return d.type; })
+        // .attr("type", function (d) { return d.type; })
         .attr("id", function (d) { return d.id; }) // use meteor's d._id maybe
         .on("touchstart", function(d) {
             touchDown = true;
@@ -446,6 +464,22 @@ function restart() {
             }
         })
         .call(force.drag);
+        // .each(function(d, b) {
+        //     if (d.type === "person") {
+        //         var r = radius(d);
+
+        //         d3.select("#"+d.id)
+        //             // .append("image")
+        //             // .attr("xlink:href", "/images/pma.png")
+        //             .append("img")
+        //             .attr("src", "/images/pma.png")
+        //             .attr("x", -r)
+        //             .attr("y", -r)
+        //             .attr("width", 2*r)
+        //             .attr("height", 2*r);
+        //     }
+        //     console.log("ended:", this);
+        // });
 
 
         // .on("mouseover", function(d) {      
@@ -462,25 +496,31 @@ function restart() {
         //     tooltip.style("opacity", 0);   
         // })
 
+    // var g = nodeDiv.append("svg:g");
 
-    ///////////////
-        // .each(function(d, b) {
-        //     if (d.type === "person") {
-        //         d3.select("#"+d.id)
-        //             .append("image")
-        //             .attr("xlink:href", "https://github.com/favicon.ico")
-        //             .attr("x", -8)
-        //             .attr("y", -8)
-        //             .attr("width", 16)
-        //             .attr("height", 16);
-        //     }
-        //     console.log("ended:", this);
-        // });
+
+    g.append("use")
+        .attr("xlink:href", "#rect")
+        .attr("stroke-width", "1")
+        .attr("stroke", "#888");
+
+    g.append("svg:image")
+        .attr("xlink:href", function(d) { return d.type=="person" ? d.iconURL : null; })
+        .style("opacity", function(d) { return (d.type!="person" ? 0.0 : 1.0); } )
+        .attr("x", -PERSON_NODE_RADIUS)
+        .attr("y", -PERSON_NODE_RADIUS)
+        .attr("width", PERSON_NODE_RADIUS*2)
+        .attr("height", PERSON_NODE_RADIUS*2)
+        .attr("clip-path", "url(#clip)");
 
     g.append("svg:circle")
         .attr("r", radius)
-        .style("fill", fill)
-        .style("stroke", function(d) { return d3.rgb(fill(d)).darker(0.7); });
+        .style("fill", function(d) { 
+            return (d.type=="person" ? "none" : fill(d));
+        })
+        .style("stroke", function(d) { 
+            return d3.rgb(fill(d)).darker(0.4);
+        });
 
     g.append("svg:text")
         .text(function(d) { return d.title; })
@@ -491,22 +531,18 @@ function restart() {
         })
         .style("text-anchor", "middle")
         .attr("x", 0)
-        .attr("y", 5);
+        .attr("y", function(d) { 
+            return (d.type=="person" ? 37 : 5);
+        });
 
-    // node
-    //     .append("image")
-    //     .attr("xlink:href", "https://github.com/favicon.ico")
-    //     .attr("x", -8)
-    //     .attr("y", -8)
-    //     .attr("width", 16)
-    //     .attr("height", 16);
 
-    // node
-    //     .append("text")
-    //     .attr("dy", ".35em")
-    //     .attr("text-anchor", "middle")
-    //     .text(function(d) { return d.title; });
 
+
+     // nodeDiv.append("img")
+     //    .attr("src", "/images/pma.png")
+     //    .style({width:100, height:100});
+
+    
     force.start();
 }
 
@@ -1103,7 +1139,8 @@ function radius(d) {
     var TARGET_RADIUS_MIN = TARGET_RADIUS_MAX / 2;
 
     if (d.type === "person") {
-        return Math.max(20, TARGET_RADIUS_MIN * 0.8);
+        // return Math.max(20, TARGET_RADIUS_MIN * 0.8);
+        return PERSON_NODE_RADIUS;
     }
     else {
         var radiusScale = d3.scale.linear()
@@ -1115,7 +1152,7 @@ function radius(d) {
 
 function fill(d) {
     if (d.priority == null) {
-        return d3.rgb(250, 250, 250);
+        return d3.rgb(255, 255, 255);
     }
     return tricolor(d.priority);
 }
