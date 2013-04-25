@@ -48,13 +48,18 @@ Meteor.methods({
 				console.log("refreshUserInfo: already up to date");
 				return;
 			}
+			else {
+				console.log("\n\nTime to update user", uid, u);
+			}
 
 			if (u.services.github) {
 
 				var res = Meteor.http.get("https://api.github.com/users/" + 
-					u.services.github.username).data;
+					u.services.github.username, {
+      				headers: {"User-Agent": "Prairie/0.1"}}).data;
 
 				if (res) {
+					console.log("Response from api.github.com", res.length);
 					url = res.avatar_url;
 
 					console.log("------------updating user with github info.");
@@ -79,6 +84,9 @@ Meteor.methods({
 							console.log("refreshed user:", u.profile);
 						}
 					});
+				}
+				else {
+					console.log("Invalid response from https://api.github.com/users/" + u.services.github.username);
 				}
 			}
 		}
