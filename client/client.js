@@ -70,14 +70,14 @@ activitiesSubscription = Meteor.subscribe("activities", function() {
 });    
 
 function directorySubscriptionReady() {
-    // addPeople();
+    addPeople();
     restart();
     nodeLinksSubscription = Meteor.subscribe("node_links", nodeLinksSubscriptionReady);
 
     var cursor = Meteor.users.find({});
 
     cursor.observeChanges({
-        // _suppress_initial: true,
+        _suppress_initial: true,
 
         added: function(id, fields) {
             var u = Meteor.users.findOne(id);
@@ -120,17 +120,11 @@ function nodeLinksSubscriptionReady() {
     cursor.observeChanges({
 
         added: function(id, fields) {
-            console.log("***added link:", id, fields);
 
             var d = NodeLinks.findOne(id);
 
             if (d) {
-
-                if ($("#" + nodeLinkElementIdForItemId(id)).length == 0) {
-                    // fields._id = id;
-                    // fields.source = findNodeById(fields.source.id);
-                    // fields.target = findNodeById(fields.target.id);
-
+                if (d.source && d.target) {
                     var newLink = {
                         _id: id,
                         source: findNodeById(d.source.id),
@@ -147,10 +141,10 @@ function nodeLinksSubscriptionReady() {
                     }
 
                     addNodeLink(newLink);
-                    console.log("***added link:", newLink);
+                    // console.log("***added link:", newLink);
                 }
                 else {
-                    console.log("link", id, "already added")
+                    // console.log("link", id, "already added")
                 }
 
                 restart();
@@ -186,10 +180,10 @@ Meteor.startup(function ()
             console.log("Not logged in");
         }
         else {
-            console.log("User is logged in", Meteor.userId());
+            // console.log("User is logged in", Meteor.userId());
 
             Meteor.call("refreshUserInfo", Meteor.userId(), function(err, result) {
-                console.log("------------------ refreshed user info", err, result);
+                // console.log("------------------ refreshed user info", err, result);
             });            
         }
     });
@@ -323,7 +317,6 @@ function addNodeLink(fields) {
         return;
     }
 
-    console.log(linkSet.length, "addNodeLink", fields._id);
     linkSet.push(fields);
 }
 
