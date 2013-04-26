@@ -72,7 +72,11 @@ activitiesSubscription = Meteor.subscribe("activities", function() {
 function directorySubscriptionReady() {
     addPeople();
     restart();
-    nodeLinksSubscription = Meteor.subscribe("node_links", nodeLinksSubscriptionReady);
+
+    setTimeout(function() {
+        // Delay links purely for effect.
+        nodeLinksSubscription = Meteor.subscribe("node_links", nodeLinksSubscriptionReady);
+    }, 2000);
 
     var cursor = Meteor.users.find({});
 
@@ -81,15 +85,14 @@ function directorySubscriptionReady() {
 
         added: function(id, fields) {
             var u = Meteor.users.findOne(id);
-            console.log("***added user", id, fields, u);
+            // console.log("***added user", id, fields, u);
             addPeople([u])
             restart();
         },
         changed: function(id, fields) {
             var u = Meteor.users.findOne(id);
-            console.log("***changed user", id, fields, u);
+            // console.log("***changed user", id, fields, u);
             var personId = personElementIdForItemId(id);
-            var d3Element = d3.select("#" + personId);
             var d = findNodeById(personId);
 
             if (!d) {
@@ -97,12 +100,18 @@ function directorySubscriptionReady() {
                 return;
             }
 
-            d.title = u.profile ? u.profile.initials : "!!!";
-            d3Element.select("text").text(function(d) { return d.title; });
+            if (u.profile) {
+                d.title = u.profile.initials || "???";
+                d.iconURL = u.profile.iconURL;
+
+                var d3Element = d3.select("#" + personId);
+                d3Element.select("text").text(function(d) { return d.title; });
+                d3Element.select("image").attr("xlink:href", function(d) { return d.iconURL; })
+            }
 
         },
         removed: function(id) {
-            console.log("***removed user", id);
+            // console.log("***removed user", id);
 
             var ni;
             if ((ni = indexOfNodeItem({_id:id})) != -1) {
@@ -177,7 +186,7 @@ Meteor.startup(function ()
     Deps.autorun(function () {       
 
         if (Meteor.userId() === null) {
-            console.log("Not logged in");
+            // console.log("Not logged in");
         }
         else {
             // console.log("User is logged in", Meteor.userId());
@@ -348,7 +357,7 @@ function useTheForce() {
         .linkStrength(0.33) // default 1
         .linkDistance(function(d) {
             var r = radius({priority:d.weight});
-            return Math.sqrt(5*r*r) + Math.random()*30;
+            return Math.sqrt(4*r*r) + Math.random()*20 + 40;
         })
         .size([w, h]);
 
@@ -416,9 +425,10 @@ function useTheForce() {
 }
 
 function restart() {
-    var k = Math.sqrt(nodeSet.length / (w * h));
+
+    var k = Math.sqrt(nodeSet.length / (Math.min(w,900) * Math.min(h,700)));
     // force.charge(-10 / k).gravity(70 * k)
-    force.gravity(60 * k)
+    force.gravity(80 * k)
 
     link = link.data(linkSet);
 

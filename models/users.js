@@ -27,8 +27,20 @@ Meteor.methods({
 		return a;
 	},
 
-	removeAllUsers: function() {
-		Meteor.users.remove({});
+    removeUser: function(userId) {
+
+        var u = [];
+        var eid = "person-" + userId;
+
+        NodeLinks.remove({$or: [{"target.id":eid}, {"source.id":eid}]});
+
+        Meteor.users.remove(userId); 
+    },
+
+    removeAllUsers: function() {
+        Meteor.users.find().forEach(function(u) { 
+            Meteor.call("removeUser", u._id)
+        });
 	},
 
 	currentUser: function() {

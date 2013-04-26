@@ -88,8 +88,9 @@ Meteor.methods({
     // TODO: disable this in prod!
 
     Activities.find().forEach(function(i) { 
-      console.log("remove", i);
-      Activities.remove(i._id); 
+      // console.log("remove", i);
+      Meteor.call("removeActivity", i._id);
+      // Activities.remove(i._id); 
     });
   },
 
