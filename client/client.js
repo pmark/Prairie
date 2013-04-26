@@ -4,7 +4,7 @@ var $chart = null,
     w = null,
     h = null,
     svg = null,
-    nodeSet = null,
+    nodeSet = [],
     // linkSet = null,
     node = null,
     link = null,
@@ -55,7 +55,7 @@ activitiesSubscription = Meteor.subscribe("activities", function() {
             restart();
         },
         removed: function(id) {
-            // console.log("***removed", id);
+            console.log("***removed", id);
 
             var ni;
             if ((ni = indexOfNodeItem({_id:id})) != -1) {
@@ -120,18 +120,46 @@ function nodeLinksSubscriptionReady() {
     cursor.observeChanges({
 
         added: function(id, fields) {
-            // console.log("***added link:", id, fields);
+            console.log("***added link:", id, fields);
 
-            if ($("#" + nodeLinkElementIdForItemId(id)).length == 0) {
-                fields._id = id;
+            var d = NodeLinks.findOne(id);
 
-                fields.source = findNodeById(fields.source.id);
-                fields.target = findNodeById(fields.target.id);
+            if (d) {
 
-                addNodeLink(fields);
+                if ($("#" + nodeLinkElementIdForItemId(id)).length == 0) {
+                    // fields._id = id;
+                    // fields.source = findNodeById(fields.source.id);
+                    // fields.target = findNodeById(fields.target.id);
+
+                    var newLink = {
+                        _id: id,
+                        source: findNodeById(d.source.id),
+                        target: findNodeById(d.target.id)
+                    };
+                    
+                    try {
+                        newLink.weight = 100 - Math.max(
+                            parseInt(newLink.source.priority)||0,
+                            parseInt(newLink.target.priority)||0);
+                    } 
+                    catch(e) {
+                        newLink.weight = 100;
+                    }
+
+                    addNodeLink(newLink);
+                    console.log("***added link:", newLink);
+                }
+                else {
+                    console.log("link", id, "already added")
+                }
+
+                restart();
+
+            }
+            else {
+                console.log("Can't find link", id);
             }
 
-            restart();
         },
 
         removed: function(id) {
@@ -186,6 +214,7 @@ Meteor.startup(function ()
         $(document.body).width(window.innerWidth).height(window.innerHeight);
         w = $chart.width();
         h = $chart.height();
+
         restart();
     }
 
@@ -280,7 +309,7 @@ function addActivity(fields) {
 
 function addNodeLink(fields) {
 
-    if ($("#" + fields.id)[0] != null) {
+    if ($("#" + fields.id).length > 0) {
         return;
     }
 
@@ -294,7 +323,7 @@ function addNodeLink(fields) {
         return;
     }
 
-    // console.log(linkSet.length, "addNodeLink", fields._id);
+    console.log(linkSet.length, "addNodeLink", fields._id);
     linkSet.push(fields);
 }
 
@@ -318,17 +347,16 @@ function tricolor(priority) {
 function useTheForce() {
     // Set up D3 force layout.
 
-    // color = d3.scale.linear()
-    //     .domain([0, 50, 100])
-    //     .range([d3.rgb(5,175,220), d3.rgb(255,175,0), "#FF2300"]);
-    //     // .range(["gold", "orange", "red"]);
-
-    var gravityScale = d3.scale.linear().domain([320,1280]).range([0.45, 0.01]);
-
     force = d3.layout.force()
-        .gravity(gravityScale(Math.min(1280, w)))  // default 0.1
-        .charge(-1700)  // default -30
-        .linkStrength(0.068) // default 1
+        .charge(function(d) {
+            var r = radius(d);
+            return -r * r * 1.3; 
+        })
+        .linkStrength(0.33) // default 1
+        .linkDistance(function(d) {
+            var r = radius({priority:d.weight});
+            return Math.sqrt(5*r*r) + Math.random()*30;
+        })
         .size([w, h]);
 
     var NODE_TYPE_CHART_CENTER = 0,
@@ -370,9 +398,7 @@ function useTheForce() {
         var edgePadding = 30;
 
         nodeSet.forEach(function(d) {
-            if (false && d.open) {
-                d.x = w/2;
-                d.y = h/2;
+            if (!d.fixed) {
             }
             else {
                 d.x = Math.min(w-edgePadding, Math.max(edgePadding, d.x + (d.attractor.x - d.x) * k));
@@ -396,9 +422,10 @@ function useTheForce() {
     force.start();
 }
 
-var splitNodes = {};
-
 function restart() {
+    var k = Math.sqrt(nodeSet.length / (w * h));
+    // force.charge(-10 / k).gravity(70 * k)
+    force.gravity(60 * k)
 
     link = link.data(linkSet);
 
@@ -419,32 +446,20 @@ function restart() {
         .remove();
 
 
-    // splitNodes = {};
-
-    // nodeSet.map(function(d) {
-    //     splitNodes[d.type] ? null : splitNodes[d.type] = [];
-    //     splitNodes[d.type].push(d);
-    // });
-
-    // var targets = svg.selectAll(".target").data(splitNodes["target"]);
-    // // var people = svg.selectAll(".person").data(splitNodes["person"]);
-
-    // node = svg.selectAll(".node").data(nodeSet, function(d) { return d._id; });
     node = node.data(nodeSet, function(d) { return d.id; });
 
     node.exit().transition().duration(450)
         .style("opacity", 0)
         .ease("circle")
-        .style("transform", function(d) {
-          return "translate(" + (Math.random()*(w*0.66) + (w*0.33)) + "," + 
-            (Math.random() > 0.5 ? -100 : h+100) + ")"; 
-        })        
+        .attr("transform", function(d) {
+            return "translate(" + 
+                parseInt(Math.random()*(w*0.66) + (w*0.33)) + "," + 
+                parseInt(Math.random() > 0.5 ? -100 : h+100) + ")";
+        })
         .remove();
 
-    // var nodeDiv = node.enter().append("div")
     var g = node.enter().append("svg:g")
         .attr("class", function(d) { return "node " + d.type; })
-        // .attr("type", function (d) { return d.type; })
         .attr("id", function (d) { return d.id; }) // use meteor's d._id maybe
         .on("touchstart", function(d) {
             touchDown = true;
@@ -496,17 +511,8 @@ function restart() {
         //     tooltip.style("opacity", 0);   
         // })
 
-    // var g = nodeDiv.append("svg:g");
-
-
-    g.append("use")
-        .attr("xlink:href", "#rect")
-        .attr("stroke-width", "1")
-        .attr("stroke", "#888");
-
     g.append("svg:image")
         .attr("xlink:href", function(d) { return d.type=="person" ? d.iconURL : null; })
-        .style("opacity", function(d) { return (d.type!="person" ? 0.0 : 1.0); } )
         .attr("x", -PERSON_NODE_RADIUS)
         .attr("y", -PERSON_NODE_RADIUS)
         .attr("width", PERSON_NODE_RADIUS*2)
@@ -519,7 +525,7 @@ function restart() {
             return (d.type=="person" ? "none" : fill(d));
         })
         .style("stroke", function(d) { 
-            return d3.rgb(fill(d)).darker(0.4);
+            return d3.rgb(fill(d)).darker(1.0);
         });
 
     g.append("svg:text")
@@ -534,14 +540,6 @@ function restart() {
         .attr("y", function(d) { 
             return (d.type=="person" ? 37 : 5);
         });
-
-
-
-
-     // nodeDiv.append("img")
-     //    .attr("src", "/images/pma.png")
-     //    .style({width:100, height:100});
-
     
     force.start();
 }
@@ -684,7 +682,7 @@ function setItemOpen(d, open) {
         d.fixed = true;
         d3Element.attr("data-open", "1");
         d3Element.select("text").transition().duration(250).style("opacity", "0.0");
-        d3.selectAll(".link").transition().duration(250).style("opacity", "0.0");
+        d3.selectAll(".link").transition().duration(150).style("opacity", "0.0");
 
 
         d3Element.select("circle")
@@ -1055,14 +1053,14 @@ function svgDoubleClickHandler() {
 
     var newNode = {
         scratch:true,
-        id: activityElementIdForItemId(_id),
-        _id: _id,
-        type: "activity",
+        id:activityElementIdForItemId(_id),
+        _id:_id,
+        type:"activity",
         priority:50,
         title:greekLetter(nodeSet.length),
         attractor:{x:w/2, y:h/2},
-        x: p1[0], 
-        y: p1[1]
+        x:p1[0], 
+        y:p1[1]
     };
 
     nodeSet.push(newNode);
@@ -1086,8 +1084,6 @@ function addControlEventHandlers() {
 
     $(".remove-button").click(function() {
         setItemOpen(selectedItem, false);
-
-        // TODO: Remove links
 
         if (!selectedItem.scratch) {
             Meteor.call("removeActivity", selectedItem._id, function(error) {
@@ -1152,7 +1148,7 @@ function radius(d) {
 
 function fill(d) {
     if (d.priority == null) {
-        return d3.rgb(255, 255, 255);
+        return "#555";  // "#DCD9C8";
     }
     return tricolor(d.priority);
 }
