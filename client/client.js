@@ -32,6 +32,10 @@ var $chart = null,
 activitiesSubscription = Meteor.subscribe("activities", function() {
     
     var cursor = Activities.find({});
+    var displayDelayInterval = 1000 / cursor.count();
+    var cursor = Activities.find({});
+    var nodesToAdd = 0;
+    var ease = d3.ease("cubic-out");
 
     cursor.observeChanges({
         // _suppress_initial: true,
@@ -44,10 +48,13 @@ activitiesSubscription = Meteor.subscribe("activities", function() {
             }
             else {
                 fields._id = id;
-                addActivity(fields);
-            }
 
-            restart();
+                setTimeout(function() {
+                    addActivity(fields);
+                    restart();
+                    nodesToAdd--;
+                }, ease(nodesToAdd / cursor.count()) * (nodesToAdd++) * displayDelayInterval);
+            }
         },
         changed: function(id, fields) {
             // console.log("***changed", id, fields);
@@ -77,6 +84,7 @@ function directorySubscriptionReady() {
         // Delay links purely for effect.
         nodeLinksSubscription = Meteor.subscribe("node_links", nodeLinksSubscriptionReady);
     }, 2000);
+
 
     var cursor = Meteor.users.find({});
 
@@ -125,6 +133,9 @@ function directorySubscriptionReady() {
 
 function nodeLinksSubscriptionReady() {
     var cursor = NodeLinks.find({});
+    var displayDelayInterval = 5000;
+    var linksToConnect = 0;
+    var ease = d3.ease("linear");
 
     cursor.observeChanges({
 
@@ -149,14 +160,17 @@ function nodeLinksSubscriptionReady() {
                         newLink.weight = 100;
                     }
 
+                setTimeout(function() {
                     addNodeLink(newLink);
+                    restart();
+                    linksToConnect--;
                     // console.log("***added link:", newLink);
+                }, ease(linksToConnect++ / cursor.count()) * displayDelayInterval);
+
                 }
                 else {
                     // console.log("link", id, "already added")
                 }
-
-                restart();
 
             }
             else {
@@ -290,9 +304,8 @@ function updateActivity(activityId, fields) {
         .style("stroke", function(d) { return d3.rgb(fillColor).darker(0.4); });
 }
 
+var totalActivitiesCount = 0;
 function addActivity(fields) {
-    var angle = (Math.PI * 2 / nodeSet.length) * nodeSet.length;
-    var distance = radius({priority:100}) * 2;
 
     fields.id = activityElementIdForItemId(fields._id);
 
@@ -300,9 +313,12 @@ function addActivity(fields) {
         return;
     }
 
+    var totalActivityCount = Activities.find().count();
+    var angle = ((Math.PI * 2) / (nodeSet.length+1) * totalActivityCount) % Math.PI*2;
+
     fields.type = "activity";
-    fields.x = w/2 + Math.cos(angle) * distance;
-    fields.y = h/2 + Math.sin(angle) * distance;
+    fields.x = w/2 + Math.cos(angle) * w/2;
+    fields.y = h/2 + Math.sin(angle) * h/2;
     fields.attractor = {x:w/2, y:h/2};
 
     nodeSet.push(fields);
@@ -357,7 +373,7 @@ function useTheForce() {
         .linkStrength(0.33) // default 1
         .linkDistance(function(d) {
             var r = radius({priority:d.weight});
-            return Math.sqrt(4*r*r) + Math.random()*20 + 40;
+            return Math.sqrt(4*r*r) + Math.random()*20 + 5;
         })
         .size([w, h]);
 
@@ -523,13 +539,17 @@ function restart() {
         .attr("clip-path", "url(#clip)");
 
     g.append("svg:circle")
-        .attr("r", radius)
         .style("fill", function(d) { 
             return (d.type=="person" ? "none" : fill(d));
         })
         .style("stroke", function(d) { 
             return d3.rgb(fill(d)).darker(1.0);
-        });
+        })
+        .attr("opacity", 0.2)
+        .attr("r", 10)
+        .transition().duration(2500)
+        .attr("r", radius)
+        .attr("opacity", 1.0);
 
     g.append("svg:text")
         .text(function(d) { return d.title; })
@@ -558,18 +578,19 @@ function linkId(d) {
 }
 
 
+var totalPeopleAdded = 0;
 function addPeople(userSet) {
 
     function pushUserNodes(result) {
         // console.log("userNodes result:", result);
-        var totalPersonCount = result.length;
-        var personPadding = (h / totalPersonCount);
+        var totalPersonCount = Meteor.users.find().count();
+        var angle = (Math.PI * 2) / (totalPeopleAdded++);
 
         result.forEach(function(u,i) {
 
             if ($("#person-" + u._id).length === 0) {
-                u.x = 160;
-                u.y = (i * personPadding) + personPadding/2;
+                u.x = w/2 + Math.cos(angle) * w/2;
+                u.y = h/2 + Math.sin(angle) * h/2;
                 u.attractor = {x:w/2, y:h/2 };
 
                 nodeSet.push(u);
