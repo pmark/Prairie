@@ -133,6 +133,7 @@ function directorySubscriptionReady() {
 
 function nodeLinksSubscriptionReady() {
     var cursor = NodeLinks.find({});
+    var totalLinkCount = cursor.count();
     var displayDelayInterval = 5000;
     var linksToConnect = 0;
     var ease = d3.ease("linear");
@@ -160,23 +161,17 @@ function nodeLinksSubscriptionReady() {
                         newLink.weight = 100;
                     }
 
-                setTimeout(function() {
-                    addNodeLink(newLink);
-                    restart();
-                    linksToConnect--;
-                    // console.log("***added link:", newLink);
-                }, ease(linksToConnect++ / cursor.count()) * displayDelayInterval);
+                    linksToConnect++;
+                    var delay = (ease(linksToConnect / totalLinkCount) * displayDelayInterval);
 
+                    setTimeout(function() {
+                        addNodeLink(newLink);
+                        restart();
+                        linksToConnect--;
+                        // console.log("***added link:", newLink);
+                    }, delay);
                 }
-                else {
-                    // console.log("link", id, "already added")
-                }
-
             }
-            else {
-                console.log("Can't find link", id);
-            }
-
         },
 
         removed: function(id) {
@@ -368,9 +363,9 @@ function useTheForce() {
     force = d3.layout.force()
         .charge(function(d) {
             var r = radius(d);
-            return -r * r * 1.3; 
+            return -r * r * 1.6; 
         })
-        .linkStrength(0.33) // default 1
+        .linkStrength(0.6) // default 1
         .linkDistance(function(d) {
             var r = radius({priority:d.weight});
             return Math.sqrt(4*r*r) + Math.random()*20 + 5;
@@ -444,7 +439,7 @@ function restart() {
 
     var k = Math.sqrt(nodeSet.length / (Math.min(w,900) * Math.min(h,700)));
     // force.charge(-10 / k).gravity(70 * k)
-    force.gravity(80 * k)
+    force.gravity(110 * k)
 
     link = link.data(linkSet);
 
@@ -545,11 +540,9 @@ function restart() {
         .style("stroke", function(d) { 
             return d3.rgb(fill(d)).darker(1.0);
         })
-        .attr("opacity", 0.2)
         .attr("r", 10)
         .transition().duration(2500)
-        .attr("r", radius)
-        .attr("opacity", 1.0);
+        .attr("r", radius);
 
     g.append("svg:text")
         .text(function(d) { return d.title; })
