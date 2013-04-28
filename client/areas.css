@@ -157,11 +157,11 @@ div.tooltip {
 }
 
 .edit-box {
-    height:50%;
-    top:25%;
-    width:100%;
-    margin:auto;
-    position:absolute;
+    position: absolute;
+    /*top: 12%;*/
+    height: 260px;
+    width: 100%;
+    margin: auto;
     text-align: center;
 }
 

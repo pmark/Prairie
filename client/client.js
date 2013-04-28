@@ -62,19 +62,25 @@ activitiesSubscription = Meteor.subscribe("activities", function() {
             restart();
         },
         removed: function(id) {
-            console.log("***removed", id);
-
-            var ni;
-            if ((ni = indexOfNodeItem({_id:id})) != -1) {
-                nodeSet.splice(ni, 1);
-                restart();
-            }
+            // console.log("***removed", id);
+            nodeWasRemoved(id);
         }
     });
 
     Meteor.subscribe("all_user_data", directorySubscriptionReady);
 
 });    
+
+function nodeWasRemoved(nodeId) {
+    var ni;
+    if ((ni = indexOfNodeItem({_id:nodeId})) != -1) {
+        nodeSet.splice(ni, 1);
+        restart();
+    }
+    else {
+        console.log("couldn't find ", nodeId);
+    }
+}
 
 function directorySubscriptionReady() {
     addPeople();
@@ -363,9 +369,9 @@ function useTheForce() {
     force = d3.layout.force()
         .charge(function(d) {
             var r = radius(d);
-            return -r * r * 1.6; 
+            return -r * r * 4.0;
         })
-        .linkStrength(0.6) // default 1
+        .linkStrength(0.8) // default 1
         .linkDistance(function(d) {
             var r = radius({priority:d.weight});
             return Math.sqrt(4*r*r) + Math.random()*20 + 5;
@@ -408,15 +414,11 @@ function useTheForce() {
     force.on("tick", function(e) {
 
         var k = e.alpha * .1;
-        var edgePadding = 30;
 
         nodeSet.forEach(function(d) {
-            if (!d.fixed) {
-            }
-            else {
-                d.x = Math.min(w-edgePadding, Math.max(edgePadding, d.x + (d.attractor.x - d.x) * k));
-                d.y = Math.min(h-edgePadding, Math.max(edgePadding, d.y + (d.attractor.y - d.y) * k));                
-            }
+            var edgePadding = radius(d) * 0.66;
+            d.x = Math.min(w-edgePadding, Math.max(edgePadding, d.x + (d.attractor.x - d.x) * k));
+            d.y = Math.min(h-edgePadding, Math.max(edgePadding, d.y + (d.attractor.y - d.y) * k));                
         });
 
         link
@@ -716,6 +718,9 @@ function setItemOpen(d, open) {
                 $("#activity-priority").text(d.priority);
                 $("#priority-slider").slider("setValue", d.priority);
                 $("#priority-slider").val(d.priority);
+
+                var top = Math.max(0, h/2 - parseInt($(".edit-box").css("height"))/2) + 10;
+                $(".edit-box").css("top", top);
                 $(".edit-box").fadeIn(250);
                 $("#activity-title").focus();
             });
@@ -1100,9 +1105,14 @@ function addControlEventHandlers() {
     // });
 
     $(".remove-button").click(function() {
+        $(".edit-box").fadeOut(250);
         setItemOpen(selectedItem, false);
 
-        if (!selectedItem.scratch) {
+        if (selectedItem.scratch) {
+            nodeWasRemoved(selectedItem._id);
+            selectedItem = null;
+        }
+        else {
             Meteor.call("removeActivity", selectedItem._id, function(error) {
                 selectedItem = null;
 
@@ -1147,7 +1157,7 @@ function guid() {
 }
 
 function radius(d) {
-    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([44,70]);
+    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([34,54]);
     var TARGET_RADIUS_MAX = screenWidthScale(Math.min(1280, w));
     var TARGET_RADIUS_MIN = TARGET_RADIUS_MAX / 2;
 
