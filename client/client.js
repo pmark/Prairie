@@ -542,8 +542,8 @@ function restart() {
         .style("stroke", function(d) { 
             return d3.rgb(fill(d)).darker(1.0);
         })
-        .attr("r", 10)
-        .transition().duration(2500)
+        .attr("r", function(d) { return (d.type=="person" ? radius(d) : 10);})
+        .transition().duration(2000)
         .attr("r", radius);
 
     g.append("svg:text")
