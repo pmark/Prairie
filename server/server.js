@@ -109,6 +109,16 @@ Meteor.publish("all_user_data", function () {
 	// return Meteor.users.find({}, {fields: {'nested.things': 1}});
 });
 
+Meteor.publish("prairies", function () {
+	if (Meteor.userId() === null) {
+		// TODO: Select the demo prairie
+	}
+	else {
+		// TODO: Select queries this user belongs to.
+		return Prairies.find({$in: {"userIds": Meteor.userId()}});
+	}
+});
+
 ////////////////////////////////////
 
 Accounts.onCreateUser(function(options, user) {

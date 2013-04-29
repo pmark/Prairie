@@ -174,6 +174,10 @@ function nodeLinksSubscriptionReady() {
                         addNodeLink(newLink);
                         restart();
                         linksToConnect--;
+
+                        if (linksToConnect < 1) {
+                            displayDelayInterval = 0;
+                        }
                         // console.log("***added link:", newLink);
                     }, delay);
                 }
