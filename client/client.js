@@ -738,7 +738,7 @@ function clearSelection(preserveSelectedItem) {
     setElementInvalid(node, false);
 
     if (!preserveSelectedItem) {
-        selectedItem = null;
+        unfixAndNullOutSelectedItem();
     }
 }
 
@@ -835,7 +835,7 @@ function itemWasClicked(d) {
                 if (oldSelectedItem) {
                     if (oldSelectedItem.type !== newSelectedItem.type) {
                         toggleLink(oldSelectedItem, newSelectedItem);
-                        selectedItem = null;
+                        unfixAndNullOutSelectedItem();
                     }
                     else {
                         changeSelection = true;
@@ -849,6 +849,7 @@ function itemWasClicked(d) {
 
                     // Change selection 
                     selectedItem = newSelectedItem;
+                    selectedItem.fixed = true;
                     setElementSelected(d3Element, true);
                     setElementSelected(allElementsLinkedToElement(d3Element), true, false);                
                     setElementInvalid(otherSameElements(d3Element), true);
@@ -866,6 +867,14 @@ function itemWasClicked(d) {
         }
 
     }, CLICK_TIMEOUT_MS);
+}
+
+function unfixAndNullOutSelectedItem() {
+    if (selectedItem) {
+        selectedItem.fixed = false;
+    }
+
+    selectedItem = null;
 }
 
 function allElementsLinkedToElement(element) {
@@ -1057,13 +1066,13 @@ function flashElement(element) {
 
 function saveActivityCallback(error, activityId) {
     if (error) {
-        selectedItem = null;
+        unfixAndNullOutSelectedItem();
         alert("Error: " + error.reason + " " + error.details);
     }
     else {
         delete(selectedItem.scratch);
         setItemOpen(selectedItem, false);
-        selectedItem = null;
+        unfixAndNullOutSelectedItem();
     }
 }
 
@@ -1114,11 +1123,11 @@ function addControlEventHandlers() {
 
         if (selectedItem.scratch) {
             nodeWasRemoved(selectedItem._id);
-            selectedItem = null;
+            unfixAndNullOutSelectedItem();
         }
         else {
             Meteor.call("removeActivity", selectedItem._id, function(error) {
-                selectedItem = null;
+                unfixAndNullOutSelectedItem();
 
                 if (error) {
                     alert("Error: " + error.reason + " " + error.details);
