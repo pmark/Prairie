@@ -144,6 +144,10 @@ div.tooltip {
   pointer-events: none;         
 }
 
+.zoom-in-button {
+    position:absolute;
+}
+
 /*div.delete-button {
     width:72px;
 }

@@ -32,9 +32,23 @@ Activities.allow({
   }
 });
 
+fetchNodeChildren = function(parentNodeId) {
+
+// TODO: remove this /////////////////////////////////////
+// return Activities.find({});   
+
+  console.log("\n\nfetchNodeChildren:", parentNodeId);
+
+  if (parentNodeId) {
+    return Activities.find({"_id": parentNodeId});
+  }
+  else {
+    return Activities.find({});   
+  }
+};
+
 
 Meteor.methods({
-  // options should include: description, title, team
 
   saveActivity: function(options) 
   {

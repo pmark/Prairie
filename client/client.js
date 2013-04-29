@@ -11,6 +11,7 @@ var $chart = null,
     color = null,
     force = null,
     tooltip = null,
+    zoomInButton = null,
     editBox = null,
     deleteButton = null,
     titleField = null,
@@ -26,50 +27,8 @@ var $chart = null,
     touchDown = false,
     CLICK_TIMEOUT_MS = 140,
     PERSON_NODE_RADIUS = 22,
-    PERSON_NODE_CLIP_RADIUS = 20;
-
-
-activitiesSubscription = Meteor.subscribe("activities", function() {
-    
-    var cursor = Activities.find({});
-    var displayDelayInterval = 1000 / cursor.count();
-    var cursor = Activities.find({});
-    var nodesToAdd = 0;
-    var ease = d3.ease("cubic-out");
-
-    cursor.observeChanges({
-        // _suppress_initial: true,
-
-        added: function(id, fields) {
-            // console.log("***added", id, fields);
-
-            if ($("#" + activityElementIdForItemId(id)).length > 0) {
-                updateActivity(id, fields);
-            }
-            else {
-                fields._id = id;
-
-                setTimeout(function() {
-                    addActivity(fields);
-                    restart();
-                    nodesToAdd--;
-                }, ease(nodesToAdd / cursor.count()) * (nodesToAdd++) * displayDelayInterval);
-            }
-        },
-        changed: function(id, fields) {
-            // console.log("***changed", id, fields);
-            updateActivity(id, fields);
-            restart();
-        },
-        removed: function(id) {
-            // console.log("***removed", id);
-            nodeWasRemoved(id);
-        }
-    });
-
-    Meteor.subscribe("all_user_data", directorySubscriptionReady);
-
-});    
+    PERSON_NODE_CLIP_RADIUS = 20,
+    addNodeLinkTimeout = null;
 
 function nodeWasRemoved(nodeId) {
     var ni;
@@ -170,7 +129,14 @@ function nodeLinksSubscriptionReady() {
                     linksToConnect++;
                     var delay = (ease(linksToConnect / totalLinkCount) * displayDelayInterval);
 
+                    oldCurrentNodeId = currentNodeId;
+
                     setTimeout(function() {
+
+                        if (currentNodeId != oldCurrentNodeId) {
+                            return;
+                        }
+
                         addNodeLink(newLink);
                         restart();
                         linksToConnect--;
@@ -199,10 +165,85 @@ function nodeLinksSubscriptionReady() {
 
 
 var shouldRefreshUserInfo = false;
+var currentNodeId = Session.get("currentNodeId");
+
 // If no activity selected, select one.
 Meteor.startup(function () 
 {
-    Deps.autorun(function () {       
+    Session.set("currentNodeId", null);
+
+    Deps.autorun(function () {
+
+        // Meteor.subscribe("activities", Session.get("currentNodeId"));
+        activitiesSubscription = Meteor.subscribe("activities", Session.get("currentNodeId"), function(a) {
+
+            console.log("sub ready!!", this, a);
+
+            if (Session.get("currentNodeId") && Session.get("currentNodeId") !== currentNodeId) {
+
+                currentNodeId = Session.get("currentNodeId");
+                console.log("new cnid:", currentNodeId);
+
+                nodeSet = nodeSet.filter(function(item) {
+                    return (item.type === "person");
+                });
+
+                linkSet = [];
+                restart();
+            }
+
+
+            // TODO: figure out why I have to pass the currentNodeId here and on the server's publish call.
+            var cursor;
+            if (currentNodeId) {
+                cursor = Activities.find({_id:currentNodeId });
+            }
+            else {
+                cursor = Activities.find();
+            }
+
+            console.log("\n\n Found ", cursor.count());
+
+            var displayDelayInterval = 1000 / cursor.count();
+            var nodesToAdd = 0;
+            var ease = d3.ease("cubic-out");
+
+            cursor.observeChanges({
+                // _suppress_initial: true,
+
+                added: function(id, fields) {
+                    console.log("***added", id, fields);
+
+                    if ($("#" + activityElementIdForItemId(id)).length > 0) {
+                        updateActivity(id, fields);
+                    }
+                    else {
+                        fields._id = id;
+
+                        setTimeout(function() {
+                            addActivity(fields);
+                            restart();
+                            nodesToAdd--;
+                        }, ease(nodesToAdd / cursor.count()) * (nodesToAdd++) * displayDelayInterval);
+                    }
+                },
+                changed: function(id, fields) {
+                    // console.log("***changed", id, fields);
+                    updateActivity(id, fields);
+                    restart();
+                },
+                removed: function(id) {
+                    // console.log("***removed", id);
+                    nodeWasRemoved(id);
+                }
+            });
+
+            Meteor.subscribe("all_user_data", directorySubscriptionReady);
+
+        }); 
+    });
+
+    Deps.autorun(function () {
 
         if (Meteor.userId() === null) {
             // console.log("Not logged in");
@@ -290,6 +331,11 @@ function nodeLinkElementIdForItemId(nodeLinkId) {
 function updateActivity(activityId, fields) {
     var elementId = activityElementIdForItemId(activityId);
     var activityItem = findNodeById(elementId);
+
+    if (!activityItem) {
+        console.log("Can't find", elementId);
+        return;
+    }
 
     for (var key in fields) {
         activityItem[key] = fields[key];
@@ -415,6 +461,20 @@ function useTheForce() {
     //     .attr("class", "tooltip")               
     //     .style("opacity", 0);
 
+    zoomInButton = d3.select("body")
+        .append("i")
+        .attr("class", "zoom-in-button icon-zoom-in")               
+        .style("opacity", 0)
+        .on("click", function() { 
+            zoomSelectedItem();
+        })
+        .on("mouseover", function() { 
+            $(this).addClass("icon-white");
+        })
+        .on("mouseout", function() { 
+            $(this).removeClass("icon-white"); 
+        });
+
     force.on("tick", function(e) {
 
         var k = e.alpha * .1;
@@ -439,6 +499,19 @@ function useTheForce() {
     });
 
     force.start();
+}
+
+function zoomSelectedItem() {
+    console.log("zoom", selectedItem);
+
+    // Clear current nodes.
+
+    // Get children of selected node
+
+    var nid = selectedItem._id;
+    unfixAndNullOutSelectedItem();
+    Session.set("currentNodeId", nid);
+
 }
 
 function restart() {
@@ -499,37 +572,17 @@ function restart() {
             }
         })
         .call(force.drag);
-        // .each(function(d, b) {
-        //     if (d.type === "person") {
-        //         var r = radius(d);
-
-        //         d3.select("#"+d.id)
-        //             // .append("image")
-        //             // .attr("xlink:href", "/images/pma.png")
-        //             .append("img")
-        //             .attr("src", "/images/pma.png")
-        //             .attr("x", -r)
-        //             .attr("y", -r)
-        //             .attr("width", 2*r)
-        //             .attr("height", 2*r);
-        //     }
-        //     console.log("ended:", this);
-        // });
-
-
         // .on("mouseover", function(d) {      
-        //     tooltip.text(d.title)
+        //     zoomInButton
+        //         .style("left", (d.x - 5) + "px")
+        //         .style("top", (d.y + radius(d) - 16) + "px")
         //         .transition()        
         //         .duration(150)
-        //         .style("opacity", .9);
-
-        //     setTimeout(function() {
-        //         tooltip.style("opacity", 0);
-        //     }, 1000);
+        //         .style("opacity", 1.0);
         // })
         // .on("mouseout", function(d) {       
-        //     tooltip.style("opacity", 0);   
-        // })
+        //     zoomInButton.style("opacity", 0);   
+        // });
 
     g.append("svg:image")
         .attr("xlink:href", function(d) { return d.type=="person" ? d.iconURL : null; })
@@ -853,6 +906,16 @@ function itemWasClicked(d) {
                     setElementSelected(d3Element, true);
                     setElementSelected(allElementsLinkedToElement(d3Element), true, false);                
                     setElementInvalid(otherSameElements(d3Element), true);
+
+                    if (selectedItem.type === "activity") {
+                        zoomInButton
+                            .style("left", (newSelectedItem.x - 6) + "px")
+                            .style("top", (newSelectedItem.y + radius(newSelectedItem) - 20) + "px")
+                            .transition()        
+                            .duration(150)
+                            .style("opacity", 1.0);
+                    }
+
                 }
             }
         }
@@ -872,6 +935,11 @@ function itemWasClicked(d) {
 function unfixAndNullOutSelectedItem() {
     if (selectedItem) {
         selectedItem.fixed = false;
+
+        zoomInButton
+            .transition()        
+            .duration(150)
+            .style("opacity", 0.0);
     }
 
     selectedItem = null;
@@ -1087,6 +1155,7 @@ function svgDoubleClickHandler() {
     var _id = newObjectId();
 
     var newNode = {
+        parentNodeId:currentNodeId,
         scratch:true,
         id:activityElementIdForItemId(_id),
         _id:_id,
@@ -1138,6 +1207,8 @@ function addControlEventHandlers() {
     });
 
     $(".ok-button").click(function() {
+        console.log("sel", selectedItem);
+        
         selectedItem.title = $("#activity-title").val();
         selectedItem.priority = $("#priority-slider").val();
         selectedItem.description = $("#activity-description").val();
@@ -1216,3 +1287,16 @@ Accounts.ui.config({
 Template.page.rendered = function() {
     $(".login-close-text").addClass("icon-remove");
 };
+
+Template.page.currentNodeId = function() {
+    var item = Activities.findOne(Session.get("currentNodeId"));
+    
+    console.log("new item:", item);
+
+    if (item) {
+        return item.title;
+    }
+    else {
+        return "";
+    }
+}

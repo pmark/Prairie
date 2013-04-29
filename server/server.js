@@ -92,13 +92,7 @@ Meteor.methods({
 	}
 });
 
-Meteor.publish("activities", function () {
-	return Activities.find({team:1});
-
-	// TODO: Get areas for this team only.
-	// return Areas.find(
-	// 	{ team: this.team});
-});
+Meteor.publish("activities", fetchNodeChildren);
 
 Meteor.publish("node_links", function () {
 	return NodeLinks.find({});
