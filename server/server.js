@@ -1,5 +1,9 @@
 // Prairie -- server
 
+Meteor.startup(function () {
+	console.log("trello:", Trello);
+});
+
 /*
 http://docs.meteor.com/#find
 collection.find(selector, [options]) Anywhere
