@@ -24,9 +24,9 @@ var $chart = null,
     activitiesSubscription = null,
     clickTimer = null,
     touchDown = false,
-    CLICK_TIMEOUT_MS = 140,
-    PERSON_NODE_RADIUS = 22,
-    PERSON_NODE_CLIP_RADIUS = 20;
+    CLICK_TIMEOUT_MS = 190,
+    PERSON_NODE_RADIUS = 25,
+    PERSON_NODE_CLIP_RADIUS = PERSON_NODE_RADIUS-2;
 
 
 activitiesSubscription = Meteor.subscribe("activities", function() {
@@ -373,9 +373,9 @@ function useTheForce() {
     force = d3.layout.force()
         .charge(function(d) {
             var r = radius(d);
-            return -r * r * 4.0;
+            return -r * r * 2.0;
         })
-        .linkStrength(0.8) // default 1
+        .linkStrength(0.6) // default 1
         .linkDistance(function(d) {
             var r = radius({priority:d.weight});
             return Math.sqrt(4*r*r) + Math.random()*20 + 5;
@@ -445,7 +445,7 @@ function restart() {
 
     var k = Math.sqrt(nodeSet.length / (Math.min(w,900) * Math.min(h,700)));
     // force.charge(-10 / k).gravity(70 * k)
-    force.gravity(110 * k)
+    force.gravity(30 * k)
 
     link = link.data(linkSet);
 
@@ -1170,7 +1170,7 @@ function guid() {
 }
 
 function radius(d) {
-    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([34,54]);
+    var screenWidthScale = d3.scale.linear().domain([320, 1280]).range([25,35]);
     var TARGET_RADIUS_MAX = screenWidthScale(Math.min(1280, w));
     var TARGET_RADIUS_MIN = TARGET_RADIUS_MAX / 2;
 
