@@ -24,3 +24,24 @@ svg {
   margin: 4em auto 4em auto;
   background-color: 'aquawhite';
 }
+
+.node circle {
+  fill: #FF0;
+  stroke: #AA0;
+  stroke-width: 2px;
+  stroke-opacity: 0.66;
+  fill-opacity: 1.0;
+}
+
+.node text {
+  fill: #888888;
+  stroke: none;
+  font-size: .6em;
+  opacity: 0.5;
+}
+
+.link {
+  stroke: beige;
+  stroke-width: 1px;
+  stroke-opacity: 1.0;
+}

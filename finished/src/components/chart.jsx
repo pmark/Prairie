@@ -1,7 +1,7 @@
 import React                from 'react';
 import {connect}            from 'react-redux';
 import * as actionCreators  from '../lib/action-creators';
-import ScatterPlot          from './scatter-plot';
+import ScatterPlot          from './scatter-plot2';
 
 const styles = {
   width   : 500,
@@ -16,6 +16,9 @@ const Chart = (props) => {
     <div className="controls">
       <button className="btn randomize" onClick={() => props.randomizeData()}>
         Randomize Data
+      </button>
+      <button className="btn animate" onClick={() => props.animate()}>
+        Animate
       </button>
     </div>
   </div>
