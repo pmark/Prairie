@@ -129,17 +129,11 @@ class Force extends React.Component {
 
   render() {  
     return <div>
-      <h1>Force Directed Graph</h1>
+      <h1>Current Iteration</h1>
 
-      <svg width={styles.width} height={styles.height} style={{border:'2px solid black'}}> 
+      <svg width={styles.width} height={styles.height} style={{border:'2px solid rgba(0,0,0,0.25)'}}> 
         <g ref='graph' />
-      </svg>
-      
-      <div className="controls">
-        <button className="btn randomize" onClick={() => this.props.randomizeData()}>
-          Randomize Data
-        </button>
-      </div>
+      </svg>      
     </div>
   }
 

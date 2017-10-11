@@ -3,8 +3,8 @@ import React         from 'react';
 import ReactDOM      from 'react-dom';
 import { Provider }  from 'react-redux';
 import { makeStore } from './lib/store';
-import Force         from './components/force.jsx';
-import Chart         from './components/chart.jsx';
+import Force         from './components/force-stories.jsx';
+// import Chart         from './components/chart.jsx';
 
 const nodes = [];
 const links = [];
@@ -36,7 +36,7 @@ const newNode = () => {
   }
 };
 
-Array.apply(null, {length:30}).forEach(() => newNode());
+Array.apply(null, {length:100}).forEach(() => newNode());
 
 
 const store = makeStore();
